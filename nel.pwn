@@ -205,10 +205,12 @@ new player[MAX_PLAYERS][pData];
 new ServerHour = 0;
 new ServerMinute = 0;
 new TimerUpdateTime;
-new Text:ServerClock;
 new TimerUpdateTextdraw;
 new ConnectTimer[MAX_PLAYERS];
 
+
+
+new Text:ServerClock;
 
 main()
 {
@@ -221,7 +223,8 @@ main()
 public OnGameModeInit()
 {
 
-
+    DisableInteriorEnterExits();
+    EnableStuntBonusForAll(0);
     CreateClockTD();
 
     new hour;
@@ -260,7 +263,7 @@ public OnPlayerRequestClass(playerid, classid)
 {
     StartLoginCamera(playerid);
     SendClientMessage(playerid, -1, "{4682B4}INFO{FFFFFF}: Die Spielewelt wird aufgebaut, bitte um etwas Geduld ...");
-    SendClientMessage(playerid, -1, "{4682B4}INFO{FFFFFF}: Es wird Überprüft ob du einen Account hast ...");
+    SendClientMessage(playerid, -1, "{4682B4}INFO{FFFFFF}: Es wird ÃœberprÃ¼ft ob du einen Account hast ...");
     if (!player[playerid][pLoggedIn]) ConnectTimer[playerid] = SetTimerEx("ConnectDelay", 10000, false, "i", playerid);
     return 1;
 }
@@ -270,7 +273,6 @@ forward ConnectDelay(playerid);
 public ConnectDelay(playerid)
 {
     new buffer[128];
-    SendClientMessage(playerid, -1, "[DEBUG][PUBLIC] ConnectDelay called");
     mysql_format(mysql, buffer, sizeof(buffer), "SELECT id, first_login FROM players WHERE name = '%e'", player[playerid][pName]);
     mysql_pquery(mysql, buffer, "OnPlayerCheck", "d", playerid);
     return 1;
@@ -280,13 +282,12 @@ public ConnectDelay(playerid)
 forward OnPlayerCheck(playerid);
 public OnPlayerCheck(playerid)
 {
-    //SendClientMessage(playerid, -1, "[DEBUG][PUBLIC] OnPlayerCheck called");
     new r;
     new buf[600];
     cache_get_row_count(r);
     if (r == 0)
     {
-        format(buf, sizeof(buf), "{90EE90}Willkommen auf Neverland e-Life.com!\n\n{D3D3D3}Es konnte kein Account unter dem Namen {4682B4}%s{D3D3D3} gefunden werden.\n\nUm auf unserem SA:MP Server spielen zu können, musst du dich zuerst im Forum registrieren.\nNach erfolgreicher Registration im Forum, kannst du einen Spieleraccount erstellen.\nSobald du einen Spieleraccount erstellt hast, kannst du dich\nmit unserem SA:MP Server verbinden und dein neues Abenteuer starten!\n\n{90EE90}Wir wünschen dir viel Spaß und freuen uns dich bald begrüßen zu dürfen!\n\n{4682B4}FORUM: www.neverland-elife.com", player[playerid][pName]);
+        format(buf, sizeof(buf), "{90EE90}Willkommen auf Neverland e-Life.com!\n\n{D3D3D3}Es konnte kein Account unter dem Namen {4682B4}%s{D3D3D3} gefunden werden.\n\nUm auf unserem SA:MP Server spielen zu kÃ¶nnen, musst du dich zuerst im Forum registrieren.\nNach erfolgreicher Registration im Forum, kannst du einen Spieleraccount erstellen.\nSobald du einen Spieleraccount erstellt hast, kannst du dich\nmit unserem SA:MP Server verbinden und dein neues Abenteuer starten!\n\n{90EE90}Wir wÃ¼nschen dir viel SpaÃŸ und freuen uns dich bald begrÃ¼ÃŸen zu dÃ¼rfen!\n\n{4682B4}FORUM: www.neverland-elife.com", player[playerid][pName]);
         ShowPlayerDialog(playerid, DIALOG_NOACC, DIALOG_STYLE_MSGBOX, "Registrierung erforderlich!", buf, "Verstanden", "");
         Kick(playerid);
     }
@@ -295,7 +296,7 @@ public OnPlayerCheck(playerid)
         cache_get_value_name_int(0, "first_login", player[playerid][pFirstTime]);
         if (!player[playerid][pFirstTime])
         {
-            ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Anmeldung", #DIALOGGRAY"Willkommen zurück!\n\nBitte trage dein Passwort unten in das Eingabefeld ein:\n\n{F88379}INFO: Bitte beachte, dass du 3 Versuche hast das Passwort korrekt einzugeben.", "Ok", "Abbrechen");
+            ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Anmeldung", #DIALOGGRAY"Willkommen zurÃ¼ck!\n\nBitte trage dein Passwort unten in das Eingabefeld ein:\n\n{F88379}INFO: Bitte beachte, dass du 3 Versuche hast das Passwort korrekt einzugeben.", "Ok", "Abbrechen");
         }
         else
         {
@@ -319,7 +320,6 @@ public OnPlayerConnect(playerid)
     }
     player[playerid][pLoggedIn] = false;
     GetPlayerName(playerid, player[playerid][pName], MAX_PLAYER_NAME);
-    TextDrawShowForPlayer(playerid, ServerClock);
 
     return 1;
 }
@@ -333,6 +333,7 @@ public OnPlayerDisconnect(playerid, reason)
 
 public OnPlayerSpawn(playerid)
 {
+    TextDrawShowForPlayer(playerid, ServerClock);
     return 1;
 }
 
@@ -397,7 +398,7 @@ public OnPlayerText(playerid, text[])
         }
         part1[splitPos] = 0;
 
-        // Kopiere zweiten Teil (überspringe Leerzeichen)
+        // Kopiere zweiten Teil (ï¿½berspringe Leerzeichen)
         new pos = 0;
         for (new i = splitPos + 1; i < len; i++)
         {
@@ -566,12 +567,10 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
         }
         case DIALOG_LOGIN:
         {
-            if (player[playerid][pLoginTries] > 2) return Kick(playerid);
             if (!response) return Kick(playerid);
             if (strlen(inputtext) < 3)
             {
-                player[playerid][pLoginTries]++;
-                ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Anmeldung", #DIALOGGRAY"Bitte logge Dich ein:\n{FF0000}Du hast ein falsches Passwort eigegeben!", "Ok", "Abbrechen");
+                ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Anmeldung", #DIALOGGRAY"Bitte trage dein Passwort unten in das Eingabefeld ein:\n\n{AA3333}Du hast ein falsches Passwort eigegeben!", "Weiter", "Abbrechen");
             }
             mysql_format(mysql, buf, sizeof(buf), "SELECT * FROM players WHERE name = '%e' AND password = MD5('%e')", player[playerid][pName], inputtext);
             mysql_pquery(mysql, buf, "OnPlayerLogin", "d", playerid);
@@ -589,13 +588,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
             }
             if (!IsPasswordValid(inputtext))
             {
-                SendClientMessage(playerid, -1, "PASSWORD NOT SECURE");
 
                 ShowPlayerDialog(playerid, DIALOG_SETPASS, DIALOG_STYLE_PASSWORD, "Neues Passwort", "{FFFFFF}Das von dir eingegebene Passwort entspricht nicht den Mindestanforderungen.\n\nBitte gib ein sicheres Passwort ein:\n\n"#DIALOGGREEN"** Das Passwort muss mindestens 8 Zeichen lang sein\n** Das Passwort muss mindestens 1 Sonderzeichen enthalten\n** Das Passwort muss mindestens eine Zahl enthalten\n\n"#DIALOGGRAY"Bitte merke dir dein Passwort.", "Weiter", "Abbrechen");
                 return 1;
             }
             format(player[playerid][pPassword], 128, "%s", inputtext);
-            ShowPlayerDialog(playerid, DIALOG_PASSWORD_CONFIRM, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Sehr gut! Bitte gib das Passwort, zur Bestätigung, erneut ein:", "Weiter", "Abbrachen");
+            ShowPlayerDialog(playerid, DIALOG_PASSWORD_CONFIRM, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Sehr gut! Bitte gib das Passwort, zur Bestï¿½tigung, erneut ein:", "Weiter", "Abbrachen");
             return 1;
         }
         case DIALOG_PASSWORD_CONFIRM:
@@ -603,7 +601,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
             if (!response) return Kick(playerid);
             if (strcmp(player[playerid][pPassword], inputtext, false))
             {
-                ShowPlayerDialog(playerid, DIALOG_PASSWORD_CONFIRM, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Bitte gib das Passwort, zur Bestätigung, erneut ein:\n\n{FF0000}Die Passwörter stimmen nicht überein. Bitte versuche es erneut!", "Weiter", "Abbrachen");
+                ShowPlayerDialog(playerid, DIALOG_PASSWORD_CONFIRM, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Bitte gib das Passwort, zur Bestï¿½tigung, erneut ein:\n\n{FF0000}Die Passwï¿½rter stimmen nicht ï¿½berein. Bitte versuche es erneut!", "Weiter", "Abbrachen");
                 return 1;
             }
             mysql_format(mysql, buf, sizeof(buf), "UPDATE players SET password = MD5('%e'), first_login = 0 WHERE name = '%e'", player[playerid][pPassword], player[playerid][pName]);
@@ -627,8 +625,9 @@ public OnPlayerLogin(playerid)
         if (!player[playerid][pFirstTime])
         {
             player[playerid][pLoginTries]++;
-            ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Anmeldung", #DIALOGGRAY"Bitte logge Dich ein:\n{FF0000}Du hast ein falsches Passwort eigegeben!", "Ok", "Abbrechen");
-            format(buf, sizeof(buf), "{FF0000}ERROR{FFFFFF}: Falsches Passwort! Das ist der %d. Fehlversuch von 3.", player[playerid][pLoginTries]);
+            if (player[playerid][pLoginTries] >= 3) return Kick(playerid);
+            ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Anmeldung", #DIALOGGRAY"Bitte trage dein Passwort unten in das Eingabefeld ein:\n\n{AA3333}Du hast ein falsches Passwort eigegeben!", "Weiter", "Abbrechen");
+            format(buf, sizeof(buf), "{AA3333}ERROR{FFFFFF}: Falsches Passwort! Das ist der %d. Fehlversuch von 3.", player[playerid][pLoginTries]);
             SendClientMessage(playerid, -1, buf);
         }
         else
@@ -636,7 +635,7 @@ public OnPlayerLogin(playerid)
             player[playerid][pLoginTries]++;
             if (player[playerid][pLoginTries] >= 3) return Kick(playerid);
             ShowPlayerDialog(playerid, DIALOG_FIRST_LOGIN, DIALOG_STYLE_PASSWORD, "Erste Anmeldung", "{FFFF00}Du hast das falsche Passwort eingegeben!"#DIALOGGRAY"\n\nBitte gib das Einmalpasswort ein welches du von einem Administrator erhalten hast:\n\n{F88379}INFO: Im Anschluss wirst du gebeten ein neues Passwort einzugeben.", "Ok", "Abbrechen");
-            format(buf, sizeof(buf), "{FF0000}ERROR{FFFFFF}: Falsches Passwort! Das ist der %d. Fehlversuch von 3.", player[playerid][pLoginTries]);
+            format(buf, sizeof(buf), "{AA3333}ERROR{FFFFFF}: Falsches Passwort! Das ist der %d. Fehlversuch von 3.", player[playerid][pLoginTries]);
             SendClientMessage(playerid, -1, buf);
         }
     }
@@ -672,7 +671,7 @@ public UpdateServerClock()
     UpdateClockTextdraw();
     ServerMinute += 1;
 
-    // Wenn 60 Minuten erreicht, zur nächsten Stunde
+    // Wenn 60 Minuten erreicht, zur nï¿½chsten Stunde
     if (ServerMinute >= 60)
     {
         ServerMinute = 0;
@@ -684,7 +683,7 @@ public UpdateServerClock()
             ServerHour = 0;
         }
 
-        // Spielzeit für alle Spieler aktualisieren
+        // Spielzeit fï¿½r alle Spieler aktualisieren
         SetWorldTime(ServerHour);
 
         // Tag/Nacht-Zyklus aktualisieren
@@ -698,7 +697,7 @@ stock UpdateClockTextdraw()
     new string[16];
     format(string, sizeof(string), "%02d:%02d", ServerHour, ServerMinute);
     TextDrawSetString(ServerClock, string);
-    return 1;  // ? NEU: return hinzugefügt
+    return 1;  // ? NEU: return hinzugefï¿½gt
 }
 
 stock MySQSL_Connection(ttl = 3)
@@ -719,7 +718,7 @@ stock MySQSL_Connection(ttl = 3)
         else
         {
             print("[MySQL] Es konnte keine Verbindung zur Datenbank hergestellt werden.");
-            print("[MySQL] Bitte prüfen Sie die Verbindungsdaten.");
+            print("[MySQL] Bitte prï¿½fen Sie die Verbindungsdaten.");
             print("[MySQL] Der Server wird heruntergefahren.");
             return SendRconCommand("exit");
         }
@@ -754,10 +753,10 @@ stock UpdateDayNightCycle()
     {
         weather = 1; // Klare Nacht
     }
-    // Morgendämmerung (5-7 Uhr) - Wird hell
+    // Morgendï¿½mmerung (5-7 Uhr) - Wird hell
     else if (ServerHour >= 5 && ServerHour < 7)
     {
-        weather = 2; // Neblig/Dämmerung
+        weather = 2; // Neblig/Dï¿½mmerung
     }
     // Morgen (7-11 Uhr) - Hell
     else if (ServerHour >= 7 && ServerHour < 11)
@@ -774,10 +773,10 @@ stock UpdateDayNightCycle()
     {
         weather = 10; // Sonnig
     }
-    // Abenddämmerung (18-20 Uhr) - Wird dunkel
+    // Abenddï¿½mmerung (18-20 Uhr) - Wird dunkel
     else if (ServerHour >= 18 && ServerHour < 20)
     {
-        weather = 33; // Orange Himmel/Dämmerung
+        weather = 33; // Orange Himmel/Dï¿½mmerung
     }
     // Abend/Nacht (20-24 Uhr) - Dunkel
     else
@@ -819,27 +818,6 @@ stock MySQL_SavePlayer(playerid)
 
 stock MySQL_LoadPlayer(playerid)
 {
-
-    /*
-
-        p_id,
-        bool:pLoggedIn,
-        pName[MAX_PLAYER_NAME + 1],
-        pPassword[128],
-        pFirstTime,
-        pLoginTries,
-        pAdmin,
-        pLevel,
-        pMoney,
-        pKills,
-        pDeaths,
-        bool:pGender,
-        pAge,
-        Float:pLastX,
-        Float:pLastY,
-        Float:pLastZ
-    */
-
     cache_get_value_name_int(0, "ID", player[playerid][p_id]);
     cache_get_value_name_int(0, "level", player[playerid][pLevel]);
     cache_get_value_name_int(0, "money", player[playerid][pMoney]);
@@ -858,7 +836,7 @@ stock MySQL_LoadPlayer(playerid)
 
     if (player[playerid][pPosX] == 0.0 && player[playerid][pPosY] == 0.0 && player[playerid][pPosZ] == 0.0)
     {
-        // Noob Spawn setzen
+
         TogglePlayerSpectating(playerid, 0);
         SpawnPlayer(playerid);
         SetPlayerPos(playerid, 253.6335, -303.2893, 1.5781); // Beispiel-Koordinaten
@@ -869,7 +847,7 @@ stock MySQL_LoadPlayer(playerid)
     }
     else
     {
-        // Letzte Position laden
+
         TogglePlayerSpectating(playerid, 0);
         SpawnPlayer(playerid);
         SetPlayerPos(playerid, player[playerid][pPosX], player[playerid][pPosY], player[playerid][pPosZ]);
@@ -877,6 +855,30 @@ stock MySQL_LoadPlayer(playerid)
         SetPlayerInterior(playerid, player[playerid][pInterior]);
         SetPlayerVirtualWorld(playerid, player[playerid][pVirtualW]);
         SetPlayerSkin(playerid, player[playerid][pSkin])
+    }
+
+    switch (player[playerid][pAdmin])
+    {
+        case 1:
+        {
+            SendClientMessage(playerid, 0xAA3333AA, "Admin: Du bist als Supporter angemeldet.");
+            return 1;
+        }
+        case 2:
+        {
+            SendClientMessage(playerid, 0xAA3333AA, "Admin: Du bist als Administrator Level 1 angemeldet.");
+            return 1;
+        }
+        case 3:
+        {
+            SendClientMessage(playerid, 0xAA3333AA, "Admin: Du bist als Administrator Level 2 angemeldet.");
+            return 1;
+        }
+        case 1337:
+        {
+            SendClientMessage(playerid, 0xAA3333AA, "Admin: Du bist als Administrator Level 1337 angemeldet.");
+            return 1;
+        }
     }
 
     return 1;
@@ -913,12 +915,12 @@ stock bool:IsPasswordValid(const password[])
 
     for (new i = 0; i < len; i++)
     {
-        // Prüfe auf Zahl (0-9)
+        // Prï¿½fe auf Zahl (0-9)
         if (password[i] >= '0' && password[i] <= '9')
         {
             hasNumber = true;
         }
-        // Prüfe auf Sonderzeichen (alles außer Buchstaben und Zahlen)
+        // Prï¿½fe auf Sonderzeichen (alles auï¿½er Buchstaben und Zahlen)
         else if (!(password[i] >= 'a' && password[i] <= 'z') &&
                  !(password[i] >= 'A' && password[i] <= 'Z') &&
                  !(password[i] >= '0' && password[i] <= '9'))
@@ -926,7 +928,7 @@ stock bool:IsPasswordValid(const password[])
             hasSpecial = true;
         }
 
-        // Wenn beide gefunden, können wir abbrechen
+        // Wenn beide gefunden, kï¿½nnen wir abbrechen
         if (hasNumber && hasSpecial) return true;
     }
 
