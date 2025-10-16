@@ -24,6 +24,7 @@
 //#include <izcmd>
 #include <streamer>
 #include <sscanf2>
+#include <banfix>
 #include <core>
 #include <float>
 #include <time>
@@ -1840,7 +1841,7 @@ main()
 	print(" By Moderntopia Scripting Team ");
 	print(" ");
 	print("MYSQL: Moderntopia MySQL Player Accounts v0.1 by Luk0r");
-	MySQLConnect();
+	
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -1879,37 +1880,9 @@ public MySQLConnect(sqlhost[], sqluser[], sqlpass[], sqldb[]) // by Luk0r
 	}
 }*/
 
-stock MySQLDisconnect() 
-{
-	mysql_close(mysql);
-	return 1;
-}
 
-stock MySQLConnect(ttl = 3)
-{
-	print("[MySQL] Verbindungsaufbau...");
-	mysql_log(ALL);
-	mysql = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DB);
 
-	if(mysql_errno(mysql) != 0)
-	{
-		if(ttl > 1)
-		{
-			print("[MySQL] Es konnte keine Verbindung zur Datenbank hergestellt werden.");
-			printf("[MySQL] Starte neuen Verbindungsversuch (TTL: %d).", ttl-1);
-			return MySQLConnect(ttl-1);
-		}
-		else
-		{
-			print("[MySQL] Es konnte keine Verbindung zur Datenbank hergestellt werden.");
-			print("[MySQL] Bitte prï¿½fen Sie die Verbindungsdaten.");
-			print("[MySQL] Der Server wird heruntergefahren.");
-			return SendRconCommand("exit");
-		}
-	}
-	printf("[MySQL] Die Verbindung zur Datenbank wurde erfolgreich hergestellt! Handle: %d", _:mysql);
-	return 1;
-}
+
 
 
 
@@ -2018,18 +1991,19 @@ public MySQLCheckAccount(sqlplayersname[]) // by Luk0r
 public OnAccountCheck(playerid)
 {
 	new r;
-    new buf[600];
+    new buf[700];
     cache_get_row_count(r);
 	if(!r)
 	{
-		SendClientMessage(playerid, -1, "Registriere dich im Forum.");
-		Kick(playerid);
+		format(buf, sizeof(buf), "{90EE90}Willkommen auf Neverland e-Life.com!\n\n{D3D3D3}Es konnte kein Account unter dem Namen {4682B4}%s{D3D3D3} gefunden werden.\n\nUm auf unserem SA:MP Server spielen zu können, musst du dich zuerst im Forum registrieren.\nNach erfolgreicher Registration im Forum, kannst du einen Spieleraccount erstellen.\nSobald du einen Spieleraccount erstellt hast, kannst du dich\nmit unserem SA:MP Server verbinden und dein neues Abenteuer starten!\n\n{90EE90}Wir wünschen dir viel Spaß und freuen uns dich bald begrüßen zu dürfen!\n\n{4682B4}FORUM: www.neverland-elife.com", PlayerInfo[playerid][pName]);	
+		ShowPlayerDialog(playerid, DIALOG_NO_ACCOUNT, DIALOG_STYLE_MSGBOX, "Registrierung erforderlich!", buf, "Verstanden", "");
+		Kick(playerid);	
 	}
 	else 
 	{
-		if(!PlayerInfo[playerid][pFirstTime]){
-			//ShowDialog FIRST LOGIN
-			
+		if(!PlayerInfo[playerid][pFirstTime])
+		{
+			//ShowDialog FIRST LOGIN	
 		}
 		else
 		{
@@ -2040,13 +2014,6 @@ public OnAccountCheck(playerid)
 }
 
 
-stock MySQLCheckAccountLocked(sqlplayerid)
-{
-	new query[64];
-	mysql_format(mysql, query, sizeof(query), "SELECT Locked FROM players WHERE id = %d LIMIT 1", sqlplayerid);
-	mysql_tquery(mysql, query, "OnPlayerCheckLockedAccount", "i", sqlplayerid);
-	return 1;
-}
 
 public MySQLCheckIPBanned(ip[])
 {
@@ -9966,6 +9933,8 @@ public LoadSBizz()
 //------------------------------------------------------------------------------------------------------
 public OnGameModeInit()
 {
+	MySQLConnect();
+	MySQLCreateTables();
    	new string[MAX_PLAYER_NAME];
     new string1[MAX_PLAYER_NAME];
 	RaceActive=0;
@@ -11455,23 +11424,7 @@ public OnPlayerLogin(playerid,password[]) // by Luk0r v1.0
 	return 1;
 }
 
-stock ini_GetKey( line[] )
-{
-	new keyRes[256];
-	keyRes[0] = 0;
-    if ( strfind( line , "=" , true ) == -1 ) return keyRes;
-    strmid( keyRes , line , 0 , strfind( line , "=" , true ) , sizeof( keyRes) );
-    return keyRes;
-}
 
-stock ini_GetValue( line[] )
-{
-	new valRes[256];
-	valRes[0]=0;
-	if ( strfind( line , "=" , true ) == -1 ) return valRes;
-	strmid( valRes , line , strfind( line , "=" , true )+1 , strlen( line ) , sizeof( valRes ) );
-	return valRes;
-}
 public OnApptUpdate()
 {
 	new idx;
@@ -39858,11 +39811,88 @@ public OnPlayerExitFood(playerid)
 
 /* Stock Functions */
 
-/* ï¿½BERPRï¿½FUNG OB DER SPIELERACCOUNT EXISTIERT*/ 
 stock MySQL_CheckAccount(playerid)
 {
 	new buff[128];
-	mysql_format(mysql, buff, sizeof(buff), "SELECT id, firstl_login FROM players WHERE LOWER(Name) = LOWER('%s') LIMIT 1", PlayerInfo[playerid][pName]);
+	mysql_format(mysql, buff, sizeof(buff), "SELECT id, FirstLogin FROM players WHERE LOWER(Name) = LOWER('%s') LIMIT 1", PlayerInfo[playerid][pName]);
 	mysql_pquery(mysql, buff, "OnAccountCheck", "i", playerid);
+	print(buff);
 	return 1;
+}
+
+stock MySQLConnect(ttl = 3)
+{
+	print("[MySQL] Verbindungsaufbau...");
+	mysql_log(ALL);
+	mysql = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DB);
+
+	if(mysql_errno(mysql) != 0)
+	{
+		if(ttl > 1)
+		{
+			print("[MySQL] Es konnte keine Verbindung zur Datenbank hergestellt werden.");
+			printf("[MySQL] Starte neuen Verbindungsversuch (TTL: %d).", ttl-1);
+			return MySQLConnect(ttl-1);
+		}
+		else
+		{
+			print("[MySQL] Es konnte keine Verbindung zur Datenbank hergestellt werden.");
+			print("[MySQL] Bitte prï¿½fen Sie die Verbindungsdaten.");
+			print("[MySQL] Der Server wird heruntergefahren.");
+			return SendRconCommand("exit");
+		}
+	}
+	printf("[MySQL] Die Verbindung zur Datenbank wurde erfolgreich hergestellt! Handle: %d", _:mysql);
+	return 1;
+}
+
+stock MySQLDisconnect() 
+{
+	mysql_close(mysql);
+	return 1;
+}
+
+
+// MySQL Create Tables Funktion für SAMP mit MySQL R41 (mysql_pquery)
+stock MySQLCreateTables()
+{
+	printf("[MySQL] Tabellen werden erstellt...");
+    // Bans Tabelle
+    mysql_pquery(mysql, "CREATE TABLE IF NOT EXISTS `bans` (`id` INT(11) NOT NULL AUTO_INCREMENT, `type` TINYINT(2) NOT NULL, `player` INT(11) NOT NULL, `time` INT(11) NOT NULL, `amount` BIGINT(20) NOT NULL DEFAULT 0, `ip` VARCHAR(16) NOT NULL, `inactive` TINYINT(1) NOT NULL DEFAULT 0, PRIMARY KEY (`id`)) ENGINE=MyISAM DEFAULT CHARSET=latin1");
+
+    // Logins Tabelle
+    mysql_pquery(mysql, "CREATE TABLE IF NOT EXISTS `logins` (`id` INT(11) NOT NULL AUTO_INCREMENT, `time` INT(11) NOT NULL, `ip` VARCHAR(16) NOT NULL, `userid` INT(11) NOT NULL DEFAULT 0, PRIMARY KEY (`id`)) ENGINE=MyISAM DEFAULT CHARSET=latin1");
+
+    // Players Tabelle
+    mysql_pquery(mysql, "CREATE TABLE IF NOT EXISTS `players` (`id` INT(11) NOT NULL AUTO_INCREMENT, `Name` VARCHAR(50) NOT NULL, `Password` VARCHAR(50) NOT NULL, `OTP` VARCHAR(128) CHARACTER SET latin1 COLLATE latin1_swedish_ci, `FirstLogin` INT(11) DEFAULT 1, `PlayerLevel` INT(11) DEFAULT 1, `AdminLevel` INT(11) DEFAULT 0, `DonateRank` INT(11) DEFAULT 0, `UpgradePoints` INT(11) DEFAULT 0, `ConnectedTime` INT(11) DEFAULT 0, `Registered` INT(11) DEFAULT 0, `Sex` INT(11) DEFAULT 1, `Age` INT(11) DEFAULT 0, `Origin` INT(11) DEFAULT 255, `CK` INT(11) DEFAULT 0, `Muted` INT(11) DEFAULT 0, `Respect` INT(11) DEFAULT 0, `Money` BIGINT(20) DEFAULT 500, `Bank` INT(11) DEFAULT 1000, `Crimes` INT(11) DEFAULT 0, `Kills` INT(11) DEFAULT 0, `Deaths` INT(11) DEFAULT 0, `Arrested` INT(11) DEFAULT 0, `WantedDeaths` INT(11) DEFAULT 0, `Phonebook` INT(11) DEFAULT 0, `LottoNr` INT(11) DEFAULT 0, `Fishes` INT(11) DEFAULT 0, `BiggestFish` INT(11) DEFAULT 0, `Job` INT(11) DEFAULT 0, `Paycheck` INT(11) DEFAULT 0, `HeadValue` INT(11) DEFAULT 0, `Jailed` INT(11) DEFAULT 0, `JailTime` INT(11) DEFAULT 0, `Materials` INT(11) DEFAULT 0, `Drugs` INT(11) DEFAULT 0, `Leader` INT(11) DEFAULT 0, `Member` INT(11) DEFAULT 0, `FMember` INT(11) DEFAULT 255, `Rank` INT(11) DEFAULT 0, `Chara` INT(11) DEFAULT 0, `ContractTime` INT(11) DEFAULT 0, `DetSkill` INT(11) DEFAULT 0, `SexSkill` INT(11) DEFAULT 0, `BoxSkill` INT(11) DEFAULT 0, `LawSkill` INT(11) DEFAULT 0, `MechSkill` INT(11) DEFAULT 0, `JackSkill` INT(11) DEFAULT 0, `CarSkill` INT(11) DEFAULT 0, `NewsSkill` INT(11) DEFAULT 0, `DrugsSkill` INT(11) DEFAULT 0, `CookSkill` INT(11) DEFAULT 0, `FishSkill` INT(11) DEFAULT 0, `pSHealth` VARCHAR(16) DEFAULT '50.0', `pHealth` VARCHAR(16) DEFAULT '50.0', `Inte` INT(11) DEFAULT 0, `Local` INT(11) DEFAULT 255, `Team` INT(11) DEFAULT 3, `Model` INT(11) DEFAULT 264, `PhoneNr` INT(11) DEFAULT 0, `House` INT(11) DEFAULT 255, `Car` INT(11) DEFAULT 255, `Appt` INT(11) DEFAULT 255, `Bizz` INT(11) DEFAULT 255, `Pos_x` VARCHAR(16) DEFAULT '1684.9', `Pos_y` VARCHAR(16) DEFAULT '-2244.5', `Pos_z` VARCHAR(16) DEFAULT '13.5', `CarLic` INT(11) DEFAULT 0, `FlyLic` INT(11) DEFAULT 0, `BoatLic` INT(11) DEFAULT 0, `FishLic` INT(11) DEFAULT 0, `GunLic` INT(11) DEFAULT 0, `Gun1` INT(11) DEFAULT 0, `Gun2` INT(11) DEFAULT 0, `Gun3` INT(11) DEFAULT 0, `Gun4` INT(11) DEFAULT 0, `Ammo1` INT(11) DEFAULT 0, `Ammo2` INT(11) DEFAULT 0, `Ammo3` INT(11) DEFAULT 0, `Ammo4` INT(11) DEFAULT 0, `CarTime` INT(11) DEFAULT 0, `PayDay` INT(11) DEFAULT 0, `PayDayHad` INT(11) DEFAULT 0, `CDPlayer` INT(11) DEFAULT 0, `Wins` INT(11) DEFAULT 0, `Loses` INT(11) DEFAULT 0, `AlcoholPerk` INT(11) DEFAULT 0, `DrugPerk` INT(11) DEFAULT 0, `MiserPerk` INT(11) DEFAULT 0, `PainPerk` INT(11) DEFAULT 0, `TraderPerk` INT(11) DEFAULT 0, `Tutorial` INT(11) DEFAULT 0, `Mission` INT(11) DEFAULT 0, `Warnings` INT(11) DEFAULT 0, `Adjustable` INT(11) DEFAULT 0, `Fuel` INT(11) DEFAULT 0, `Married` INT(11) DEFAULT 0, `MarriedTo` VARCHAR(50) DEFAULT 'No-one', `Locked` TINYINT(1) DEFAULT 0, `Linked` INT(11) DEFAULT 1, PRIMARY KEY (`id`)) ENGINE=MyISAM DEFAULT CHARSET=latin1");
+	printf("[MySQL] Tabellen wurden erfolgreich erstellt");
+    
+    return 1;
+}
+
+
+stock MySQLCheckAccountLocked(sqlplayerid)
+{
+	new query[64];
+	mysql_format(mysql, query, sizeof(query), "SELECT Locked FROM players WHERE id = %d LIMIT 1", sqlplayerid);
+	mysql_tquery(mysql, query, "OnPlayerCheckLockedAccount", "i", sqlplayerid);
+	return 1;
+}
+
+stock ini_GetKey( line[] )
+{
+	new keyRes[256];
+	keyRes[0] = 0;
+    if ( strfind( line , "=" , true ) == -1 ) return keyRes;
+    strmid( keyRes , line , 0 , strfind( line , "=" , true ) , sizeof( keyRes) );
+    return keyRes;
+}
+
+stock ini_GetValue( line[] )
+{
+	new valRes[256];
+	valRes[0]=0;
+	if ( strfind( line , "=" , true ) == -1 ) return valRes;
+	strmid( valRes , line , strfind( line , "=" , true )+1 , strlen( line ) , sizeof( valRes ) );
+	return valRes;
 }
