@@ -11,7 +11,9 @@
 
 
  /*
-			Neverland e-Life Edit
+			-- Neverland e-Life.com --
+
+			        **by NmE**
  
  */
 
@@ -124,9 +126,9 @@ forward OnAccountCheck(playerid);
 
 // MySQL Sachen die unnötig sind und neugeschrieben werden müssen
 // UNNÖTIG
-forward MySQLConnect(sqlhost[], sqluser[], sqlpass[], sqldb[]);
-forward MySQLDisconnect();
-forward MySQLCheckConnection();
+//forward MySQLConnect(sqlhost[], sqluser[], sqlpass[], sqldb[]);
+//forward MySQLDisconnect();
+//forward MySQLCheckConnection();
 forward MySQLUpdateBuild(query[], sqlplayerid);
 forward MySQLUpdateFinish(query[], sqlplayerid);
 forward MySQLUpdatePlayerInt(query[], sqlplayerid, sqlvalname[], sqlupdateint);
@@ -1835,7 +1837,7 @@ main()
 	print(" By Moderntopia Scripting Team ");
 	print(" ");
 	print("MYSQL: Moderntopia MySQL Player Accounts v0.1 by Luk0r");
-	MySQL_SetupConnection();
+	MySQLConnect();
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -1880,27 +1882,22 @@ stock MySQLDisconnect()
 	return 1;
 }
 
-stock MySQL_SetupConnection(ttl = 3)
+stock MySQLConnect(ttl = 3)
 {
 	print("[MySQL] Verbindungsaufbau...");
-	mysql_log(ALL);  //<- Kommentar vor mysql_log entfernen um den MySQL Debug-Modus zu aktivieren
-
+	mysql_log(ALL);
 	mysql = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DB);
 
-	//Prüfen und gegebenenfalls wiederholen
 	if(mysql_errno(mysql) != 0)
 	{
-		//Fehler im Verbindungsaufbau, prüfe ob ein weiterer Versuch gestartet werden soll
 		if(ttl > 1)
 		{
-			//Versuche erneut eine Verbindung aufzubauen
 			print("[MySQL] Es konnte keine Verbindung zur Datenbank hergestellt werden.");
 			printf("[MySQL] Starte neuen Verbindungsversuch (TTL: %d).", ttl-1);
-			return MySQL_SetupConnection(ttl-1);
+			return MySQLConnect(ttl-1);
 		}
 		else
 		{
-			//Abbrechen und Server schließen
 			print("[MySQL] Es konnte keine Verbindung zur Datenbank hergestellt werden.");
 			print("[MySQL] Bitte prüfen Sie die Verbindungsdaten.");
 			print("[MySQL] Der Server wird heruntergefahren.");
@@ -3329,7 +3326,7 @@ public OnPlayerConnect(playerid)
 
 	SetPlayerColor(playerid,COLOR_GRAD2);
 	
-	MySQLCheckConnection(); // Pn das wirklich so nötig ist???
+//	MySQLCheckConnection(); // Pn das wirklich so nötig ist???
 
 
 
@@ -10953,7 +10950,7 @@ public OnPlayerRegister(playerid, password[]) // v1.0 by Luk0r
 {
 	if(IsPlayerConnected(playerid))
 	{
-		MySQLCheckConnection();
+		//MySQLCheckConnection();
 		new playername3[MAX_PLAYER_NAME];
 		GetPlayerName(playerid, playername3, sizeof(playername3));
 		new newaccountsqlid = MySQLCreateAccount(playername3, password);
@@ -10982,7 +10979,7 @@ public OnPlayerUpdate(playerid) // by Luk0r v1.2
 	{
 		if(gPlayerLogged[playerid])
 		{
-			MySQLCheckConnection();
+			//MySQLCheckConnection();
 			new query[MAX_STRING];
 			format(query, MAX_STRING, "UPDATE players SET ");
 			MySQLUpdatePlayerStr(query, PlayerInfo[playerid][pSQLID], "Password", PlayerInfo[playerid][pKey]);
@@ -11113,7 +11110,7 @@ public OnPlayerUpdate(playerid) // by Luk0r v1.2
 
 public OnPlayerLogin(playerid,password[]) // by Luk0r v1.0
 {
-	MySQLCheckConnection();
+	//MySQLCheckConnection();
 	new tmp2[256];
     new string2[64];
 	new playername2[MAX_PLAYER_NAME];
