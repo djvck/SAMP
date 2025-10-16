@@ -15,7 +15,7 @@
  
  */
 
-#define SCRIPT_VERSION "Neverland e-Life v.0.0.1"
+#define SCRIPT_VERSION "Neverland e-Life v.0.0.2"
 
 #include <a_samp>
 #include <a_mysql>
@@ -28,9 +28,9 @@
 static gTeam[MAX_PLAYERS];
 
 #define MYSQL_HOST "127.0.0.1"
-#define MYSQL_USER "root"
+#define MYSQL_USER "gta"
 #define MYSQL_PASS ""
-#define MYSQL_DB   "samp"
+#define MYSQL_DB   "gta"
 
 #define MAX_STRING 255
 #define CHECKPOINT_NONE 0
@@ -1883,7 +1883,7 @@ stock MySQLDisconnect()
 stock MySQL_SetupConnection(ttl = 3)
 {
 	print("[MySQL] Verbindungsaufbau...");
-	//mysql_log();  //<- Kommentar vor mysql_log entfernen um den MySQL Debug-Modus zu aktivieren
+	mysql_log(ALL);  //<- Kommentar vor mysql_log entfernen um den MySQL Debug-Modus zu aktivieren
 
 	mysql = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DB);
 
@@ -2052,9 +2052,9 @@ public MySQLCheckIPBanned(ip[])
 {
 	new query[64];
 	format(query, sizeof(query), "SELECT type FROM bans WHERE ip = '%s' AND inactive = 0 ORDER BY id DESC LIMIT 1", ip);
-	samp_mysql_query(query);
-	samp_mysql_store_result();
-	if (samp_mysql_num_rows() != 0)
+	//samp_mysql_query(query);
+	//samp_mysql_store_result();
+	/*if (samp_mysql_num_rows() != 0)
 	{
 		new bantypestr[4];
 		new bantypeint;
@@ -2062,7 +2062,7 @@ public MySQLCheckIPBanned(ip[])
 		bantypeint = strval(bantypestr);
 		samp_mysql_free_result();
 		return bantypeint;
-	}
+	}*/
 	return 0;
 }
 
@@ -2074,12 +2074,12 @@ public MySQLFetchAcctSingle(sqlplayerid, sqlvalname[], sqlresult[])
 {
 	new query[128];
 	format(query, sizeof(query), "SELECT %s FROM players WHERE id = %d LIMIT 1", sqlvalname, sqlplayerid);
-	samp_mysql_query(query);
-	samp_mysql_store_result();
-	if(samp_mysql_fetch_row(sqlresult)==1)
+	//samp_mysql_query(query);
+	//samp_mysql_store_result();
+	/*if(samp_mysql_fetch_row(sqlresult)==1)
 	{
 		return 1;
-	}
+	}*/
 	return 0;
 }
 
@@ -2089,12 +2089,12 @@ public MySQLFetchAcctRecord(sqlplayerid, sqlresult[]) // by Luk0r
 {
 	new query[64];
 	format(query, sizeof(query), "SELECT * FROM players WHERE id = %d LIMIT 1", sqlplayerid);
-	samp_mysql_query(query);
-	samp_mysql_store_result();
-	if(samp_mysql_fetch_row(sqlresult)==1)
+	//samp_mysql_query(query);
+	//samp_mysql_store_result();
+	/*if(samp_mysql_fetch_row(sqlresult)==1)
 	{
 		return 1;
-	}
+	}*/
 	return 0;
 }
 
@@ -2106,10 +2106,10 @@ public MySQLCreateAccount(newplayersname[], newpassword[]) // by Luk0r
 	new query[128];
 	new sqlplyname[64];
 	new sqlpassword[64];
-	samp_mysql_real_escape_string(newplayersname, sqlplyname);
-	samp_mysql_real_escape_string(newpassword, sqlpassword);
+	//samp_mysql_real_escape_string(newplayersname, sqlplyname);
+	//samp_mysql_real_escape_string(newpassword, sqlpassword);
 	format(query, sizeof(query), "INSERT INTO players (Name, Password) VALUES ('%s', '%s')", sqlplyname, sqlpassword);
-	samp_mysql_query(query);
+	//samp_mysql_query(query);
 	new newplayersid = MySQLCheckAccount(newplayersname);
 	if (newplayersid != 0)
 	{
@@ -2122,9 +2122,9 @@ public MySQLAddLoginRecord(sqlplayerid, ipaddr[]) // by Luk0r
 {
 	new query[128];
 	new escip[16];
-	samp_mysql_real_escape_string(ipaddr, escip);
+	//samp_mysql_real_escape_string(ipaddr, escip);
 	format(query, sizeof(query), "INSERT INTO logins (time,ip,userid) VALUES (UNIX_TIMESTAMP(),'%s',%d)", escip, sqlplayerid);
-	samp_mysql_query(query);
+	//samp_mysql_query(query);
 	return 1;
 }
 
@@ -38181,7 +38181,7 @@ public BanAdd(bantype, sqlplayerid, ip[], hackamount)
 {
 	new query[128];
 	format(query, sizeof(query), "INSERT INTO bans (type,player,ip,time,amount) VALUES ('%d',%d,'%s',UNIX_TIMESTAMP(),%d)", bantype,sqlplayerid,ip,hackamount);
-	samp_mysql_query(query);
+	//samp_mysql_query(query);
 	return 1;
 }
 
