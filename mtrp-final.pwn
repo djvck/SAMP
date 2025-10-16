@@ -743,6 +743,7 @@ enum SavePlayerPosEnum
     Float:LastZ
 }
 new SavePlayerPos[MAX_PLAYERS][SavePlayerPosEnum];
+
 new SpeedMode = 1;
 new UpdateSeconds = 1;
 
@@ -859,6 +860,15 @@ new Float:gMedPlayerSpawns[2][3] = {
 {1178.1,-1321.0,14.1},
 {1177.7,-1325.0,14.0}
 };
+
+
+enum {
+	DIALOG_NO_ACCOUNT,
+	DIALOG_FIRST_LOGIN,
+	DIALOG_NEW_PASSWORD,
+	DIALOG_CONFIRM_PASSWORD,
+	DIALOG_LOGIN
+}
 
 enum pBoxingStats
 {
@@ -1029,9 +1039,12 @@ new News[hNews];
 
 enum pInfo
 {
+	pSQLID,
 	pName[MAX_PLAYER_NAME],
 	pKey[64],
+	bool:pLoggedIn,
 	pLevel,
+	pFirstTime,
 	pAdmin,
 	pDonateRank,
 	gPupgrade,
@@ -1127,7 +1140,6 @@ enum pInfo
 	pMarriedTo[128],
 	pCallNumber,
 	pLearn,
-	pSQLID,
 	pRequestingBackup,
 	pRoadblock,
 	pLocked,
@@ -2012,32 +2024,28 @@ public OnAccountCheck(playerid)
 	{
 		SendClientMessage(playerid, -1, "Registriere dich im Forum.");
 		Kick(playerid);
-		return 1;
 	}
-
+	else 
+	{
+		if(!PlayerInfo[playerid][pFirstTime]){
+			//ShowDialog FIRST LOGIN
+			
+		}
+		else
+		{
+			//Show Normal Dialog 
+		}	
+	}
 	return 1;
 }
 
 
-
-
-
-
-
-/* Unnötig???*/
-public MySQLCheckAccountLocked(sqlplayerid)
+stock MySQLCheckAccountLocked(sqlplayerid)
 {
 	new query[64];
-	new lockedboolstr[4];
-	format(query, sizeof(query), "SELECT Locked FROM players WHERE id = %d LIMIT 1", sqlplayerid);
-	samp_mysql_query(query);
-	samp_mysql_store_result();
-	samp_mysql_fetch_row(lockedboolstr);
-	if (strval(lockedboolstr) != 0)
-	{
-		return 1;
-	}
-	return 0;
+	mysql_format(mysql, query, sizeof(query), "SELECT Locked FROM players WHERE id = %d LIMIT 1", sqlplayerid);
+	mysql_tquery(mysql, query, "OnPlayerCheckLockedAccount", "i", sqlplayerid);
+	return 1;
 }
 
 public MySQLCheckIPBanned(ip[])
@@ -3084,15 +3092,15 @@ public IsABus(carid)
 
 public OnPlayerConnect(playerid)
 {
-	new plname[MAX_PLAYER_NAME];
-	GetPlayerName(playerid, plname, sizeof(plname));
-	
+
+	GetPlayerName(playerid, PlayerInfo[playerid][pName], MAX_PLAYER_NAME);
+	/*
 	if(Security != 0) // what the hell is this?
 	{
 	    SendClientMessage(playerid, COLOR_YELLOW, "Host has broken one of the Agreement rules, action has been taken.");
 	    Kick(playerid);
 	    return 1;
- 	}
+ 	}*/
 	
 /*	new string[256];
 	// Check if the player is IP banned
@@ -3126,7 +3134,7 @@ public OnPlayerConnect(playerid)
 		return 1;
 	}*/
 	
-	new namestring = strfind(plname, "_", true);
+	/*new namestring = strfind(plname, "_", true);
 	if(namestring == -1)
 	{
 		SendClientMessage(playerid, TEAM_AZTECAS_COLOR, "Immigration: Your name is not acceptable.");
@@ -3134,14 +3142,20 @@ public OnPlayerConnect(playerid)
 		Kick(playerid);
 		return 1;
 	}
-	
+	*/
+
 	for(new h = 158; h < sizeof(CarInfo); h++)
 	{
 		SetVehicleParamsForPlayer(h,playerid,0,CarInfo[h][cLock]);
 	}
+
 	gActivePlayers[playerid]++;
 	numplayers++;
 	//new string[MAX_PLAYER_NAME];
+
+
+	// VARIABLE RESETS
+
 	SelectChar[playerid] = 0; HidePM[playerid] = 0; PhoneOnline[playerid] = 0; LearnTime[playerid] = 0;
 	SelectCharID[playerid] = 0; SelectCharPlace[playerid] = 0; ChosenSkin[playerid] = 0;
 	GettingJob[playerid] = 0; GuardOffer[playerid] = 999; GuardPrice[playerid] = 0;
@@ -3194,6 +3208,9 @@ public OnPlayerConnect(playerid)
 	PizzaCallTime[playerid] = 0; ScratchTimer[playerid] = 0; FishTimer[playerid] = 0;
 	bPizza[playerid] = 0; sPizza[playerid] = 0;
 	InAFoodPlace[playerid] = 0;
+
+
+	// PLAYER ENUM RESET
 	PlayerInfo[playerid][pLevel] = 0;
 	PlayerInfo[playerid][pAdmin] = 0;
 	PlayerInfo[playerid][pDonateRank] = 0;
@@ -3248,7 +3265,11 @@ public OnPlayerConnect(playerid)
 	PlayerInfo[playerid][pLocal] = 255;
 	PlayerInfo[playerid][pTeam] = 3;
 	PlayerInfo[playerid][pModel] = 135;
+
+	// WTF WARUM RANDOM TELEFONNUMMER
 	new randphone = 100000 + random(899999);//minimum 100000  max 999999 //giving one at the start
+
+
 	PlayerInfo[playerid][pPnumber] = randphone;
 	PlayerInfo[playerid][pPcarkey] = 999;
 	PlayerInfo[playerid][pPhousekey] = 255;
@@ -3297,16 +3318,23 @@ public OnPlayerConnect(playerid)
 	PlayerInfo[playerid][pMP5] = 0;
 	PlayerInfo[playerid][pM4] = 0;
 	PlayerInfo[playerid][pAK47] = 0;
+
+
 	ClearCrime(playerid);
 	ClearFishes(playerid);
 	ClearCooking(playerid);
 	ClearGroceries(playerid);
 	ClearMarriage(playerid);
+
+
 	SetPlayerColor(playerid,COLOR_GRAD2);
 	
-	MySQLCheckConnection();
-	
-	// Check if the account exists
+	MySQLCheckConnection(); // Pn das wirklich so nötig ist???
+
+
+
+
+	// CHECK OB DER USER EXISTIER 
 	new sqlaccountstatus = MySQLCheckAccount(plname);
 	if(sqlaccountstatus != 0)
 	{
@@ -3326,6 +3354,9 @@ public OnPlayerConnect(playerid)
 	}
 	SendClientMessage(playerid, COLOR_YELLOW, "Please wait...");
 	return 1;
+
+
+
 }
 
 public JoinChannel(playerid, number, line[])
@@ -6882,6 +6913,11 @@ public OnPlayerExitVehicle(playerid, vehicleid)
 
 public OnPlayerRequestClass(playerid, classid)
 {
+
+	if(!PlayerInfo[playerid][pLoggedIn]){
+		MySQL_CheckAccount(playerid);
+	}
+	/*
 	new string[128];
 	if (RegistrationStep[playerid] == 0 && gPlayerLogged[playerid] != 1)
 	{
@@ -6906,7 +6942,9 @@ public OnPlayerRequestClass(playerid, classid)
 		SetPlayerTeamFromClass(playerid,classid);
 	}
 	else SpawnPlayer(playerid);
-	return false;
+	return false;*/
+
+
  /*	if (classid == 1)
 	{
 			format(string, sizeof(string), "~y~> ~p~Police Chief ~y~< ~n~Leaders only!");
@@ -6997,8 +7035,8 @@ public OnPlayerRequestClass(playerid, classid)
 		format(string, sizeof(string), " ");
 		GameTextForPlayer(playerid,string,3500,6);
 	}
-	SetupPlayerForClassSelection(playerid);
-	return 1;*/
+	SetupPlayerForClassSelection(playerid);*/
+	return 1;
 }
 
 public OnPlayerRequestSpawn(playerid)
@@ -39708,7 +39746,7 @@ public OnPlayerExitFood(playerid)
 stock MySQL_CheckAccount(playerid)
 {
 	new buff[128];
-	mysql_format(mysql, buff, sizeof(buff), "SELECT id FROM players WHERE LOWER(Name) = LOWER('%s') LIMIT 1", PlayerInfo[playerid][pName]);
+	mysql_format(mysql, buff, sizeof(buff), "SELECT id, firstl_login FROM players WHERE LOWER(Name) = LOWER('%s') LIMIT 1", PlayerInfo[playerid][pName]);
 	mysql_pquery(mysql, buff, "OnAccountCheck", "i", playerid);
 	return 1;
-} 
+}
