@@ -21,6 +21,11 @@
 
 #include <a_samp>
 #include <a_mysql>
+//#include <izcmd>
+#include <streamer>
+#define SSCANF_NO_NICE_FEATURES
+#include <sscanf2>
+#include <banfix>
 #include <core>
 #include <float>
 #include <time>
@@ -31,7 +36,7 @@ static gTeam[MAX_PLAYERS];
 
 #define MYSQL_HOST "127.0.0.1"
 #define MYSQL_USER "gta"
-#define MYSQL_PASS ""
+#define MYSQL_PASS "Hallo123"
 #define MYSQL_DB   "gta"
 
 #define MAX_STRING 255
@@ -97,7 +102,7 @@ static gTeam[MAX_PLAYERS];
 #define COLOR_SPEC 0xBFC0C200
 
 
-// UNN÷TIG; ZCMD WIRD BENUTZT
+// UNNÔøΩTIG; ZCMD WIRD BENUTZT
 #define dcmd(%1,%2,%3) if ((strcmp((%3)[1], #%1, true, (%2)) == 0) && ((((%3)[(%2) + 1] == 0) && (dcmd_%1(playerid, "")))||(((%3)[(%2) + 1] == 32) && (dcmd_%1(playerid, (%3)[(%2) + 2]))))) return 1
 
 #define MAX_RACECHECKPOINTS 640 // Change if you want more room for checkpoints than this
@@ -117,6 +122,8 @@ forward CheckForLicenseTestCheckpoint(i, tmpcar);
 
 // NEL Forwards
 forward OnAccountCheck(playerid);
+forward OnPlayerCheckLockedAccount(sqlplayerid);
+forward OnPlayerIpBannedCheck(playerid);
 
 
 
@@ -124,8 +131,8 @@ forward OnAccountCheck(playerid);
 
 
 
-// MySQL Sachen die unnˆtig sind und neugeschrieben werden m¸ssen
-// UNN÷TIG
+// MySQL Sachen die unnÔøΩtig sind und neugeschrieben werden mÔøΩssen
+// UNNÔøΩTIG
 //forward MySQLConnect(sqlhost[], sqluser[], sqlpass[], sqldb[]);
 //forward MySQLDisconnect();
 //forward MySQLCheckConnection();
@@ -141,7 +148,7 @@ forward MySQLCheckIPBanned(ip[]);
 forward MySQLFetchAcctSingle(sqlplayerid, sqlvalname[], sqlresult[]);
 forward MySQLFetchAcctRecord(sqlplayerid, sqlresult[]);
 forward MySQLCreateAccount(newplayersname[], newpassword[]);
-forward MySQLAddLoginRecord(sqlplayerid, ipaddr[]);
+//forward MySQLAddLoginRecord(sqlplayerid, ipaddr[]);
 
 
 
@@ -1045,6 +1052,7 @@ enum pInfo
 	pName[MAX_PLAYER_NAME],
 	pKey[64],
 	bool:pLoggedIn,
+	pIpAdress[16],
 	pLevel,
 	pFirstTime,
 	pAdmin,
@@ -1832,12 +1840,13 @@ main()
 {
 	print(" ");
 	print(" ");
-	print("   Moderntopia: Los Santos");
+	print("   Neverland e-Life");
 	print(" _____________________________");
-	print(" By Moderntopia Scripting Team ");
+	print(" By www.neverland-elife.com ");
+	print(" Programmed by NmE ");
 	print(" ");
 	print("MYSQL: Moderntopia MySQL Player Accounts v0.1 by Luk0r");
-	MySQLConnect();
+	
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -1876,37 +1885,9 @@ public MySQLConnect(sqlhost[], sqluser[], sqlpass[], sqldb[]) // by Luk0r
 	}
 }*/
 
-stock MySQLDisconnect() 
-{
-	mysql_close(mysql);
-	return 1;
-}
 
-stock MySQLConnect(ttl = 3)
-{
-	print("[MySQL] Verbindungsaufbau...");
-	mysql_log(ALL);
-	mysql = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DB);
 
-	if(mysql_errno(mysql) != 0)
-	{
-		if(ttl > 1)
-		{
-			print("[MySQL] Es konnte keine Verbindung zur Datenbank hergestellt werden.");
-			printf("[MySQL] Starte neuen Verbindungsversuch (TTL: %d).", ttl-1);
-			return MySQLConnect(ttl-1);
-		}
-		else
-		{
-			print("[MySQL] Es konnte keine Verbindung zur Datenbank hergestellt werden.");
-			print("[MySQL] Bitte pr¸fen Sie die Verbindungsdaten.");
-			print("[MySQL] Der Server wird heruntergefahren.");
-			return SendRconCommand("exit");
-		}
-	}
-	printf("[MySQL] Die Verbindung zur Datenbank wurde erfolgreich hergestellt! Handle: %d", _:mysql);
-	return 1;
-}
+
 
 
 
@@ -2015,43 +1996,39 @@ public MySQLCheckAccount(sqlplayersname[]) // by Luk0r
 public OnAccountCheck(playerid)
 {
 	new r;
-    new buf[600];
+    new buf[700];
     cache_get_row_count(r);
 	if(!r)
 	{
-		SendClientMessage(playerid, -1, "Registriere dich im Forum.");
-		Kick(playerid);
+		format(buf, sizeof(buf), "{90EE90}Willkommen auf Neverland e-Life.com!\n\n{D3D3D3}Es konnte kein Account unter dem Namen {4682B4}%s{D3D3D3} gefunden werden.\n\nUm auf unserem SA:MP Server spielen zu kˆnnen, musst du dich zuerst im Forum registrieren.\nNach erfolgreicher Registration im Forum, kannst du einen Spieleraccount erstellen.\nSobald du einen Spieleraccount erstellt hast, kannst du dich\nmit unserem SA:MP Server verbinden und dein neues Abenteuer starten!\n\n{90EE90}Wir w¸nschen dir viel Spaﬂ und freuen uns dich bald begr¸ﬂen zu d¸rfen!\n\n{4682B4}FORUM: www.neverland-elife.com", PlayerInfo[playerid][pName]);	
+		ShowPlayerDialog(playerid, DIALOG_NO_ACCOUNT, DIALOG_STYLE_MSGBOX, "Registrierung erforderlich!", buf, "Verstanden", "");
+		Kick(playerid);	
 	}
 	else 
 	{
-		if(!PlayerInfo[playerid][pFirstTime]){
-			//ShowDialog FIRST LOGIN
-			
+		if(!PlayerInfo[playerid][pFirstTime])
+		{
+			//ShowDialog FIRST LO
+			ShowPlayerDialog(playerid, DIALOG_FIRST_LOGIN, DIALOG_ST, "OTP", "Gib OTP ein", "Weiter", "Abbrechen");
 		}
 		else
 		{
 			//Show Normal Dialog 
+			ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", "Gib PW ein:", "Weiter", "Abbrechen");
 		}	
 	}
 	return 1;
 }
 
 
-stock MySQLCheckAccountLocked(sqlplayerid)
-{
-	new query[64];
-	mysql_format(mysql, query, sizeof(query), "SELECT Locked FROM players WHERE id = %d LIMIT 1", sqlplayerid);
-	mysql_tquery(mysql, query, "OnPlayerCheckLockedAccount", "i", sqlplayerid);
-	return 1;
-}
 
-public MySQLCheckIPBanned(ip[])
+/*public MySQLCheckIPBanned(ip[])
 {
 	new query[64];
 	format(query, sizeof(query), "SELECT type FROM bans WHERE ip = '%s' AND inactive = 0 ORDER BY id DESC LIMIT 1", ip);
-	//samp_mysql_query(query);
-	//samp_mysql_store_result();
-	/*if (samp_mysql_num_rows() != 0)
+	samp_mysql_query(query);
+	samp_mysql_store_result();
+	if (samp_mysql_num_rows() != 0)
 	{
 		new bantypestr[4];
 		new bantypeint;
@@ -2059,13 +2036,20 @@ public MySQLCheckIPBanned(ip[])
 		bantypeint = strval(bantypestr);
 		samp_mysql_free_result();
 		return bantypeint;
-	}*/
+	}
 	return 0;
+}*/
+
+
+stock MySQLCheckIPBanned(playerid){
+	new query[128];
+	mysql_format(mysql, query, sizeof(query), "SELECT type FROM bans WHERE ip = '%e' AND inactive = 0 ORDER BY id DESC LIMIT 1", PlayerInfo[playerid][pIpAdress]);
+	mysql_pquery(mysql, query, "OnPlayerIpBannedCheck", "i", playerid);
+	return 1;
 }
 
-
-// LƒDT SCHEINBAR EINE EINZIGE VALUE DIE ANGEGEBEN WIRD 
-// UNN÷TIG ???
+// LÔøΩDT SCHEINBAR EINE EINZIGE VALUE DIE ANGEGEBEN WIRD 
+// UNNÔøΩTIG ???
 
 public MySQLFetchAcctSingle(sqlplayerid, sqlvalname[], sqlresult[])
 {
@@ -2098,7 +2082,7 @@ public MySQLFetchAcctRecord(sqlplayerid, sqlresult[]) // by Luk0r
 
 // UMSCHREIBEN DA KEIN REGISTER EXISTIERT
 
-public MySQLCreateAccount(newplayersname[], newpassword[]) // by Luk0r
+/*public MySQLCreateAccount(newplayersname[], newpassword[]) // by Luk0r
 {
 	new query[128];
 	new sqlplyname[64];
@@ -2113,17 +2097,9 @@ public MySQLCreateAccount(newplayersname[], newpassword[]) // by Luk0r
 		return newplayersid;
 	}
 	return 0;
-}
+}*/
 
-public MySQLAddLoginRecord(sqlplayerid, ipaddr[]) // by Luk0r
-{
-	new query[128];
-	new escip[16];
-	//samp_mysql_real_escape_string(ipaddr, escip);
-	format(query, sizeof(query), "INSERT INTO logins (time,ip,userid) VALUES (UNIX_TIMESTAMP(),'%s',%d)", escip, sqlplayerid);
-	//samp_mysql_query(query);
-	return 1;
-}
+
 
 //------------------------------------------------------------------------------------------------------
 
@@ -2306,63 +2282,69 @@ public PaintballEnded()
 public IO1(playerid)
 {
 	ClearChatbox(playerid, 5);
-	SendClientMessage(playerid, COLOR_YELLOW, "INTRODUCTION");
+	SendClientMessage(playerid, COLOR_YELLOW, "EINF‹HRUNG");
 	SendClientMessage(playerid, COLOR_YELLOW, " ");
-	SendClientMessage(playerid, COLOR_YELLOW2, "Let me start off by saying that there is no such thing as");
-	SendClientMessage(playerid, COLOR_YELLOW2, "no-risk driving. Whenever you are behind the wheel, there is");
-	SendClientMessage(playerid, COLOR_YELLOW2, "always a risk. At the DMV, we try to make driving as non-dangerous");
-	SendClientMessage(playerid, COLOR_YELLOW2, "as possible by teaching low-risk driving principles.");
+	SendClientMessage(playerid, COLOR_YELLOW2, "Zuerst einmal: Es gibt kein vˆllig risikofreies Fahren.");
+	SendClientMessage(playerid, COLOR_YELLOW2, "Jedes Mal, wenn du ein Fahrzeug f¸hrst, gehst du ein gewisses Risiko ein.");
+	SendClientMessage(playerid, COLOR_YELLOW2, "Hier beim Straﬂenverkehrsamt mˆchten wir dir zeigen, wie du durch");
+	SendClientMessage(playerid, COLOR_YELLOW2, "umsichtiges und defensives Fahren Gefahren so weit wie mˆglich vermeidest.");
 	SendClientMessage(playerid, COLOR_YELLOW2, " ");
 }
 // Fahrschulzeug
 public IO2(playerid)
 {
 	ClearChatbox(playerid, 5);
-	SendClientMessage(playerid, COLOR_YELLOW, "SPEED MANAGEMENT");
+	SendClientMessage(playerid, COLOR_YELLOW, "GESCHWINDIGKEITSKONTROLLE");
 	SendClientMessage(playerid, COLOR_YELLOW, " ");
-	SendClientMessage(playerid, COLOR_YELLOW2, "Speed Management is important, as speeding can lead to loss of");
-	SendClientMessage(playerid, COLOR_YELLOW2, "steering and possible loss of life or limb. It greatly increases");
-	SendClientMessage(playerid, COLOR_YELLOW2, "the risk of a car crash. It is important to go a speed that suites");
-	SendClientMessage(playerid, COLOR_YELLOW2, "the conditions. Not too fast, not too slow.");
+	SendClientMessage(playerid, COLOR_YELLOW2, "Die richtige Geschwindigkeitskontrolle ist sehr wichtig, denn zu schnelles");
+	SendClientMessage(playerid, COLOR_YELLOW2, "Fahren kann dazu f¸hren, dass du die Kontrolle ¸ber das Fahrzeug verlierst");
+	SendClientMessage(playerid, COLOR_YELLOW2, "- mit schweren Folgen f¸r dich und andere. ‹berhˆhte Geschwindigkeit");
+	SendClientMessage(playerid, COLOR_YELLOW2, "erhˆht das Risiko eines Unfalls erheblich. Fahre immer mit einer");
+	SendClientMessage(playerid, COLOR_YELLOW2, "Geschwindigkeit, die den jeweiligen Bedingungen angepasst ist -");
+	SendClientMessage(playerid, COLOR_YELLOW2, "nicht zu schnell, aber auch nicht zu langsam.");
 	SendClientMessage(playerid, COLOR_YELLOW2, " ");
 }
 // Fahrschulzeug
 public IO3(playerid)
 {
-	SendClientMessage(playerid, COLOR_YELLOW2, "It is also very important not to talk on the phone or SMS while");
-	SendClientMessage(playerid, COLOR_YELLOW2, "driving as it will greatly increase the chance of you having a");
-	SendClientMessage(playerid, COLOR_YELLOW2, "crash. Please pull over if you want to speak on the phone or SMS.");
+	SendClientMessage(playerid, COLOR_YELLOW2, "Ebenso wichtig ist es, w‰hrend der Fahrt weder zu telefonieren");
+	SendClientMessage(playerid, COLOR_YELLOW2, "noch Textnachrichten zu schreiben. Beides lenkt stark ab und");
+	SendClientMessage(playerid, COLOR_YELLOW2, "erhˆht das Risiko eines Unfalls erheblich. Halte bitte an einem");
+	SendClientMessage(playerid, COLOR_YELLOW2, "sicheren Ort an, wenn du telefonieren oder eine Nachricht senden mˆchtest.");
 	SendClientMessage(playerid, COLOR_YELLOW2, " ");
 }
 // Fahrschulzeug
 public IO4(playerid)
 {
 	ClearChatbox(playerid, 5);
-	SendClientMessage(playerid, COLOR_YELLOW, "STREET SIGNS");
+	SendClientMessage(playerid, COLOR_YELLOW, "VERKEHRSZEICHEN");
 	SendClientMessage(playerid, COLOR_YELLOW, " ");
-	SendClientMessage(playerid, COLOR_YELLOW2, "A white line painted on the road next to a curb means no");
-	SendClientMessage(playerid, COLOR_YELLOW2, "parking at any time, clearway restrictions apply. It also");
-	SendClientMessage(playerid, COLOR_YELLOW2, "means no stopping unless medical emergency. You are permitted");
-	SendClientMessage(playerid, COLOR_YELLOW2, "to stop here if an officer pulls you over.");
+	SendClientMessage(playerid, COLOR_YELLOW2, "Eine weiﬂe Linie entlang des Bordsteins bedeutet, dass dort");
+	SendClientMessage(playerid, COLOR_YELLOW2, "zu keiner Zeit geparkt werden darf - es gilt ein Halteverbot.");
+	SendClientMessage(playerid, COLOR_YELLOW2, "Das Anhalten ist nur in einem medizinischen Notfall gestattet.");
+	SendClientMessage(playerid, COLOR_YELLOW2, "Du darfst dort ebenfalls halten, wenn dich ein Polizeibeamter anh‰lt.");
 	SendClientMessage(playerid, COLOR_YELLOW, " ");
+
 }
 // Fahrschulzeug
 public IO5(playerid)
 {
 	ClearChatbox(playerid, 5);
-	SendClientMessage(playerid, COLOR_YELLOW, "ROAD RULES");
+	SendClientMessage(playerid, COLOR_YELLOW, "VERKEHRSREGELN");
 	SendClientMessage(playerid, COLOR_YELLOW, " ");
-	SendClientMessage(playerid, COLOR_YELLOW2, "When on a four lane road (2-lanes going either way) you are");
-	SendClientMessage(playerid, COLOR_YELLOW2, "only allowed to be in the left lane when overtaking another");
-	SendClientMessage(playerid, COLOR_YELLOW2, "vehicle or when turning left within 300 feet. It is a criminal");
-	SendClientMessage(playerid, COLOR_YELLOW2, "offense to be in this lane at any other time.");
+	SendClientMessage(playerid, COLOR_YELLOW2, "Auf einer vierspurigen Straﬂe (zwei Spuren pro Fahrtrichtung)");
+	SendClientMessage(playerid, COLOR_YELLOW2, "darfst du die linke Spur nur benutzen, um ein anderes Fahrzeug");
+	SendClientMessage(playerid, COLOR_YELLOW2, "zu ¸berholen oder um innerhalb von etwa 100 Metern nach links");
+	SendClientMessage(playerid, COLOR_YELLOW2, "abzubiegen. Es ist eine Ordnungswidrigkeit, diese Spur zu befahren,");
+	SendClientMessage(playerid, COLOR_YELLOW2, "wenn keiner dieser Gr¸nde vorliegt.");
 	SendClientMessage(playerid, COLOR_YELLOW2, " ");
+
 }
 // Fahrschulzeug
 public IO6(playerid)
 {
- 	SendClientMessage(playerid, COLOR_YELLOW, "End of the Information Outline Course.");
- 	SendClientMessage(playerid, COLOR_YELLOW, "We hope you were paying attention, because it's time to answer some questions!");
+	SendClientMessage(playerid, COLOR_YELLOW, "Ende des Informationskurses.");
+	SendClientMessage(playerid, COLOR_YELLOW, "Wir hoffen, du hast gut aufgepasst - denn jetzt ist es Zeit, ein paar Fragen zu beantworten!");
 	SendClientMessage(playerid, COLOR_YELLOW, " ");
 	SetTimerEx("DKT1", 5000, 0, "d", playerid);
 }
@@ -3326,13 +3308,13 @@ public OnPlayerConnect(playerid)
 
 	SetPlayerColor(playerid,COLOR_GRAD2);
 	
-//	MySQLCheckConnection(); // Pn das wirklich so nˆtig ist???
+
 
 
 
 
 	// CHECK OB DER USER EXISTIER 
-	new sqlaccountstatus = MySQLCheckAccount(plname);
+	/*new sqlaccountstatus = MySQLCheckAccount(plname);
 	if(sqlaccountstatus != 0)
 	{
 		// Check if the account is locked
@@ -3349,7 +3331,7 @@ public OnPlayerConnect(playerid)
 	{
 		gPlayerAccount[playerid] = 0;
 	}
-	SendClientMessage(playerid, COLOR_YELLOW, "Please wait...");
+	SendClientMessage(playerid, COLOR_YELLOW, "Please wait...");*/
 	return 1;
 
 
@@ -3911,6 +3893,7 @@ public OnPlayerDisconnect(playerid)
 	//CurrentMoney[playerid] = 0;
 	BusrouteEast[playerid][0] = 0;
 	BusrouteWest[playerid][0] = 0;
+	return 1;
 }
 
 public SetPlayerSpawn(playerid)
@@ -3920,7 +3903,7 @@ public SetPlayerSpawn(playerid)
 	    if(PlayerInfo[playerid][pTut] == 0)
 	    {
 			gOoc[playerid] = 1; gNews[playerid] = 1; gFam[playerid] = 1;
-			TogglePlayerControllable(playerid, 0);
+			 // TogglePlayerControllable(playerid, 0);
 			SetPlayerVirtualWorld(playerid,playerid+1);
 			RegistrationStep[playerid] = 1;
 			ClearChatbox(playerid, 8);
@@ -3944,7 +3927,7 @@ public SetPlayerSpawn(playerid)
 	    if(PlayerInfo[playerid][pLearn] == 1)
 	    {
   			gOoc[playerid] = 1; gNews[playerid] = 1; gFam[playerid] = 1;
-			TogglePlayerControllable(playerid, 0);
+			 // TogglePlayerControllable(playerid, 0);
 			LearnTime[playerid] = 1;
 		}
 		if(PlayerInfo[playerid][pJailed] == 1)
@@ -4022,7 +4005,7 @@ public SetPlayerSpawn(playerid)
 	        rand = random(sizeof(gMedicSpawns));
 			SetPlayerPos(playerid, gMedicSpawns[rand][0], gMedicSpawns[rand][1], gMedicSpawns[rand][2]); // Warp the player
 			SetPlayerFacingAngle(playerid, 270.0);
-	        TogglePlayerControllable(playerid, 0);
+	         // TogglePlayerControllable(playerid, 0);
 	        GameTextForPlayer(playerid, "~n~~n~~n~~n~~n~~n~~n~~y~You are recovering from your ~r~wounds~y~...", 35000, 3);
 	        MedicTime[playerid] = 1;
 	        if(PlayerInfo[playerid][pDonateRank] > 0)
@@ -4723,6 +4706,12 @@ public OnPlayerDeath(playerid, killerid, reason)
 	return 1;
 }
 
+
+public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
+{
+    return 0;
+}
+
 public OnPlayerSpawn(playerid)
 {
 	InitLockDoors(playerid);
@@ -4735,7 +4724,7 @@ public OnPlayerSpawn(playerid)
 	if(gPlayerLogged[playerid] == 0)
 	{
     	SendClientMessage(playerid, COLOR_LIGHTRED, "** This server requires a login BEFORE spawn (Kicked) **");
-        KickPlayer[playerid] = 1;
+        //KickPlayer[playerid] = 1;
  	}
 	if(gTeam[playerid] == 11 && PlayerInfo[playerid][pLeader] < 1)
 	{
@@ -5235,7 +5224,7 @@ public OnPlayerEnterCheckpoint(playerid)
 				case 11:
 				{
 					nextstop = "end";
-					TogglePlayerControllable(playerid, 0);
+					 // TogglePlayerControllable(playerid, 0);
 	                SendClientMessage(playerid, COLOR_YELLOW, "Bus route completed, use /starteast or /startwest to make a new round.");
 					SendClientMessage(playerid, COLOR_YELLOW, "Use /exit to leave the bus.");
 				    DisablePlayerCheckpoint(playerid);
@@ -5339,7 +5328,7 @@ public OnPlayerEnterCheckpoint(playerid)
 				case 11:
 				{
 					nextstop = "end";
-					TogglePlayerControllable(playerid, 0);
+					 // TogglePlayerControllable(playerid, 0);
 	                SendClientMessage(playerid, COLOR_YELLOW, "Bus route completed, use /starteast or /startwest to make a new round.");
 					SendClientMessage(playerid, COLOR_YELLOW, "Use /exit to leave the bus.");
 				    DisablePlayerCheckpoint(playerid);
@@ -5379,7 +5368,7 @@ public OnPlayerEnterCheckpoint(playerid)
 	}
 	if (InAFoodPlace[playerid] != 0)
 	{
-		TogglePlayerControllable(playerid, 0);
+		 // TogglePlayerControllable(playerid, 0);
 		switch (InAFoodPlace[playerid])
 		{
 			case 1: // chicken
@@ -6322,7 +6311,7 @@ public OnPlayerStateChange(playerid, newstate, oldstate)
 				GameTextForPlayer(playerid, "~y~/buycar ~w~to purchase this car~n~~y~/exit ~w~to leave the vehicle", 10000, 4);
 				format(string, sizeof(string), "~w~Car: ~y~%s~n~~w~Price: ~g~$%d~n~~w~If you are finished browsing (/buycar or /done)", CarInfo[newcar][cDescription], CarInfo[newcar][cValue]);
 				GameTextForPlayer(playerid, string, 5000, 3);
-		   		TogglePlayerControllable(playerid, 0);
+		   		 // TogglePlayerControllable(playerid, 0);
 				BrowsingCar[playerid] = 1;
 				return 1;
 			}
@@ -6424,7 +6413,7 @@ public OnPlayerStateChange(playerid, newstate, oldstate)
 			GameTextForPlayer(playerid, "~y~/exit ~w~to leave the vehicle ~y~/buycar ~w~to purchase this car.", 10000, 4);
 			format(string, sizeof(string), "~w~Car: ~y~%s  ~w~Price: ~g~$%d ~w~(/buycar)", CarInfo[newcar][cDescription], CarInfo[newcar][cValue]);
 			GameTextForPlayer(playerid, string, 5000, 3);
-    		TogglePlayerControllable(playerid, 0);
+    		 // TogglePlayerControllable(playerid, 0);
 		}*/
 /*		if(newcar == 46 || newcar == 47)
 		{
@@ -6526,7 +6515,7 @@ public OnPlayerStateChange(playerid, newstate, oldstate)
 			if (HireCar[playerid] != newcar)
 			{
 				format(string, sizeof(string), "~w~You can Rent this car~n~Cost:~g~$%d~n~~w~To rent type ~g~/rentcar~w~~n~to get out type ~r~/exit",SBizzInfo[0][sbEntranceCost]);
-				TogglePlayerControllable(playerid, 0);
+				 // TogglePlayerControllable(playerid, 0);
 				GameTextForPlayer(playerid, string, 5000, 3);
 			}
 		}
@@ -6535,7 +6524,7 @@ public OnPlayerStateChange(playerid, newstate, oldstate)
 			if (HireCar[playerid] != newcar)
 			{
 				format(string, sizeof(string), "~w~You can Rent this Vehicle~n~Cost:~g~$%d~n~~w~To rent type ~g~/rentcar~w~~n~to get out type ~r~/exit",SBizzInfo[1][sbEntranceCost]);
-				TogglePlayerControllable(playerid, 0);
+				 // TogglePlayerControllable(playerid, 0);
 				GameTextForPlayer(playerid, string, 5000, 3);
 			}
 		}
@@ -6544,7 +6533,7 @@ public OnPlayerStateChange(playerid, newstate, oldstate)
 			if (HirePlane[playerid] != newcar)
 			{
 				format(string, sizeof(string), "~w~You can Rent this Plane~n~Cost:~g~$%d~n~~w~To rent type ~g~/rentplane~w~~n~to get out type ~r~/exit",SBizzInfo[1][sbEntranceCost]);
-				TogglePlayerControllable(playerid, 0);
+				 // TogglePlayerControllable(playerid, 0);
 				GameTextForPlayer(playerid, string, 5000, 3);
 			}
 		}
@@ -6612,7 +6601,7 @@ public OnPlayerStateChange(playerid, newstate, oldstate)
 				new routezonecheck = IsInBusrouteZone(playerid);
 				if (routezonecheck == 0) SendClientMessage(playerid, COLOR_YELLOW, "Note: Your nearest route is east.");
 				else if (routezonecheck == 1) SendClientMessage(playerid, COLOR_YELLOW, "Note: Your nearest route is west.");
-				TogglePlayerControllable(playerid, 0);
+				 // TogglePlayerControllable(playerid, 0);
 			}
 			else
 			{
@@ -9962,6 +9951,8 @@ public LoadSBizz()
 //------------------------------------------------------------------------------------------------------
 public OnGameModeInit()
 {
+	MySQLConnect();
+	MySQLCreateTables();
    	new string[MAX_PLAYER_NAME];
     new string1[MAX_PLAYER_NAME];
 	RaceActive=0;
@@ -9979,7 +9970,7 @@ public OnGameModeInit()
 	{
 		Gas[c] = GasMax;
 	}
-	SetDisabledWeapons(43,44,45);
+	//SetDisabledWeapons(43,44,45);
 	LoadCar();
 	LoadProperty();
 	LoadApartment();
@@ -10124,7 +10115,7 @@ public OnGameModeInit()
 	{
 	SetWorldTime(wtime);
 	}
-	SetPDistance(10);
+	//SetPDistance(10);
 	EnableTirePopping(1);
 	EnableZoneNames(1);
 	AllowInteriorWeapons(1);
@@ -10537,6 +10528,7 @@ public OnGameModeInit()
 	return 1;*/
 	//buszonewest = GangZoneCreate(1722.3599, 2901.8652, -2694.5417, -904.3515); // West Bus Route Zone
 	//buszoneeast = GangZoneCreate(127.4722, 1722.3599, -2694.5417, -904.3515);  // East Bus Route Zone
+	return 1;
 }
 
 public SyncUp()
@@ -10953,103 +10945,47 @@ public OnPlayerRegister(playerid, password[]) // v1.0 by Luk0r
 		//MySQLCheckConnection();
 		new playername3[MAX_PLAYER_NAME];
 		GetPlayerName(playerid, playername3, sizeof(playername3));
-		new newaccountsqlid = MySQLCreateAccount(playername3, password);
-		if (newaccountsqlid != 0)
-		{
-			PlayerInfo[playerid][pSQLID] = newaccountsqlid;
+//		new newaccountsqlid = MySQLCreateAccount(playername3, password);
+//		if (newaccountsqlid != 0)
+//		{
+			//PlayerInfo[playerid][pSQLID] = newaccountsqlid;
 			//PlayerInfo[playerid][pKey] = password;
 			strmid(PlayerInfo[playerid][pKey], password, 0, strlen(password), 255);
 			OnPlayerUpdate(playerid);
 			SendClientMessage(playerid, TEAM_AZTECAS_COLOR, "Account registered, you can now log in (/login [password]).");
 			return 1;
-		}
-		else
-		{
+//		}
+//		else
+//		{
 			SendClientMessage(playerid, COLOR_RED, "There was an error creating your account. You will be disconnected now.");
 			Kick(playerid);
 			return 0;
-		}
+//		}
 	}
 	return 0;
 }
 
 public OnPlayerUpdate(playerid) // by Luk0r v1.2
 {
+
 	if(IsPlayerConnected(playerid))
 	{
 		if(gPlayerLogged[playerid])
 		{
 			//MySQLCheckConnection();
-			new query[MAX_STRING];
-			format(query, MAX_STRING, "UPDATE players SET ");
-			MySQLUpdatePlayerStr(query, PlayerInfo[playerid][pSQLID], "Password", PlayerInfo[playerid][pKey]);
+			new query[2048];
+			
 			PlayerInfo[playerid][pCash] = GetPlayerMoney(playerid);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "PlayerLevel", PlayerInfo[playerid][pLevel]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "AdminLevel", PlayerInfo[playerid][pAdmin]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "DonateRank", PlayerInfo[playerid][pDonateRank]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "UpgradePoints", PlayerInfo[playerid][gPupgrade]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "ConnectedTime", PlayerInfo[playerid][pConnectTime]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Registered", PlayerInfo[playerid][pReg]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Sex", PlayerInfo[playerid][pSex]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Age", PlayerInfo[playerid][pAge]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Origin", PlayerInfo[playerid][pOrigin]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "CK", PlayerInfo[playerid][pCK]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Muted", PlayerInfo[playerid][pMuted]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Respect", PlayerInfo[playerid][pExp]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Money", PlayerInfo[playerid][pCash]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Bank", PlayerInfo[playerid][pAccount]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Crimes", PlayerInfo[playerid][pCrimes]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Kills", PlayerInfo[playerid][pKills]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Deaths", PlayerInfo[playerid][pDeaths]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Arrested", PlayerInfo[playerid][pArrested]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "WantedDeaths", PlayerInfo[playerid][pWantedDeaths]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Phonebook", PlayerInfo[playerid][pPhoneBook]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "LottoNr", PlayerInfo[playerid][pLottoNr]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Fishes", PlayerInfo[playerid][pFishes]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "BiggestFish", PlayerInfo[playerid][pBiggestFish]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Job", PlayerInfo[playerid][pJob]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Paycheck", PlayerInfo[playerid][pPayCheck]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "HeadValue", PlayerInfo[playerid][pHeadValue]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Jailed", PlayerInfo[playerid][pJailed]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "JailTime", PlayerInfo[playerid][pJailTime]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Materials", PlayerInfo[playerid][pMats]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Drugs", PlayerInfo[playerid][pDrugs]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Leader", PlayerInfo[playerid][pLeader]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Member", PlayerInfo[playerid][pMember]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "FMember", PlayerInfo[playerid][pFMember]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Rank", PlayerInfo[playerid][pRank]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Chara", PlayerInfo[playerid][pChar]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "ContractTime", PlayerInfo[playerid][pContractTime]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "DetSkill", PlayerInfo[playerid][pDetSkill]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "SexSkill", PlayerInfo[playerid][pSexSkill]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "BoxSkill", PlayerInfo[playerid][pBoxSkill]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "LawSkill", PlayerInfo[playerid][pLawSkill]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "MechSkill", PlayerInfo[playerid][pMechSkill]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "JackSkill", PlayerInfo[playerid][pJackSkill]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "CarSkill", PlayerInfo[playerid][pCarSkill]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "NewsSkill", PlayerInfo[playerid][pNewsSkill]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "DrugsSkill", PlayerInfo[playerid][pDrugsSkill]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "CookSkill", PlayerInfo[playerid][pCookSkill]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "FishSkill", PlayerInfo[playerid][pFishSkill]);
-			MySQLUpdatePlayerFlo(query, PlayerInfo[playerid][pSQLID], "pSHealth", PlayerInfo[playerid][pSHealth]);
-			GetPlayerHealth(playerid,PlayerInfo[playerid][pHealth]);
-			MySQLUpdatePlayerFlo(query, PlayerInfo[playerid][pSQLID], "pHealth", PlayerInfo[playerid][pHealth]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Inte", PlayerInfo[playerid][pInt]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Local", PlayerInfo[playerid][pLocal]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Team", PlayerInfo[playerid][pTeam]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Model", PlayerInfo[playerid][pModel]);
-			//MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Model", GetPlayerSkin(playerid));
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "PhoneNr", PlayerInfo[playerid][pPnumber]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "House", PlayerInfo[playerid][pPhousekey]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Car", PlayerInfo[playerid][pPcarkey]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Appt", PlayerInfo[playerid][pPapptkey]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Bizz", PlayerInfo[playerid][pPbiskey]);
-			if ((PlayerInfo[playerid][pPos_x]==0.0 && PlayerInfo[playerid][pPos_y]==0.0 && PlayerInfo[playerid][pPos_z]==0.0))
+			GetPlayerHealth(playerid, PlayerInfo[playerid][pHealth]);
+
+			// Position checks
+			if ((PlayerInfo[playerid][pPos_x] == 0.0 && PlayerInfo[playerid][pPos_y] == 0.0 && PlayerInfo[playerid][pPos_z] == 0.0))
 			{
 				PlayerInfo[playerid][pPos_x] = 1684.9;
 				PlayerInfo[playerid][pPos_y] = -2244.5;
 				PlayerInfo[playerid][pPos_z] = 13.5;
 			}
+
 			if(Spectate[playerid] != 255)
 			{
 				PlayerInfo[playerid][pPos_x] = Unspec[playerid][sPx];
@@ -11058,51 +10994,219 @@ public OnPlayerUpdate(playerid) // by Luk0r v1.2
 				PlayerInfo[playerid][pInt] = Unspec[playerid][sPint];
 				PlayerInfo[playerid][pLocal] = Unspec[playerid][sLocal];
 			}
-			MySQLUpdatePlayerFlo(query, PlayerInfo[playerid][pSQLID], "Pos_x", PlayerInfo[playerid][pPos_x]);
-			MySQLUpdatePlayerFlo(query, PlayerInfo[playerid][pSQLID], "Pos_y", PlayerInfo[playerid][pPos_y]);
-			MySQLUpdatePlayerFlo(query, PlayerInfo[playerid][pSQLID], "Pos_z", PlayerInfo[playerid][pPos_z]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "CarLic", PlayerInfo[playerid][pCarLic]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "FlyLic", PlayerInfo[playerid][pFlyLic]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "BoatLic", PlayerInfo[playerid][pBoatLic]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "FishLic", PlayerInfo[playerid][pFishLic]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "GunLic", PlayerInfo[playerid][pGunLic]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Gun1", PlayerInfo[playerid][pGun1]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Gun2", PlayerInfo[playerid][pGun2]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Gun3", PlayerInfo[playerid][pGun3]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Gun4", PlayerInfo[playerid][pGun4]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Ammo1", PlayerInfo[playerid][pAmmo1]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Ammo2", PlayerInfo[playerid][pAmmo2]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Ammo3", PlayerInfo[playerid][pAmmo3]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Ammo4", PlayerInfo[playerid][pAmmo4]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Deagle", PlayerInfo[playerid][pDeagle]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Shotgun", PlayerInfo[playerid][pShotgun]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Rifle", PlayerInfo[playerid][pRifle]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "SDPistol", PlayerInfo[playerid][pSDPistol]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "MP5", PlayerInfo[playerid][pMP5]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "M4", PlayerInfo[playerid][pM4]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "AK47", PlayerInfo[playerid][pAK47]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "CarTime", PlayerInfo[playerid][pCarTime]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "PayDay", PlayerInfo[playerid][pPayDay]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "PayDayHad", PlayerInfo[playerid][pPayDayHad]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "CDPlayer", PlayerInfo[playerid][pCDPlayer]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Wins", PlayerInfo[playerid][pWins]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Loses", PlayerInfo[playerid][pLoses]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "AlcoholPerk", PlayerInfo[playerid][pAlcoholPerk]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "DrugPerk", PlayerInfo[playerid][pDrugPerk]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "MiserPerk", PlayerInfo[playerid][pMiserPerk]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "PainPerk", PlayerInfo[playerid][pPainPerk]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "TraderPerk", PlayerInfo[playerid][pTraderPerk]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Tutorial", PlayerInfo[playerid][pTut]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Mission", PlayerInfo[playerid][pMissionNr]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Warnings", PlayerInfo[playerid][pWarns]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Adjustable", PlayerInfo[playerid][pAdjustable]);
+
 			if(PlayerInfo[playerid][pDonateRank] < 1) { PlayerInfo[playerid][pFuel] = 0; }
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Fuel", PlayerInfo[playerid][pFuel]);
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Married", PlayerInfo[playerid][pMarried]);
-			//MySQLUpdatePlayerStr(query, PlayerInfo[playerid][pSQLID], "MarriedTo", PlayerInfo[playerid][pMarriedTo]);
-			//MySQLUpdatePlayerStr(query, PlayerInfo[playerid][pSQLID], "MarriedTo", "No-one");
-			MySQLUpdatePlayerInt(query, PlayerInfo[playerid][pSQLID], "Locked", PlayerInfo[playerid][pLocked]);
-			MySQLUpdateFinish(query, PlayerInfo[playerid][pSQLID]);
+
+// Build UPDATE Query mit mysql_format
+			mysql_format(mysql, query, sizeof(query), 
+				"UPDATE `players` SET \
+				`Password`='%s', \
+				`PlayerLevel`=%i, \
+				`AdminLevel`=%i, \
+				`DonateRank`=%i, \
+				`UpgradePoints`=%i, \
+				`ConnectedTime`=%i, \
+				`Registered`=%i, \
+				`Sex`=%i, \
+				`Age`=%i, \
+				`Origin`=%i, \
+				`CK`=%i, \
+				`Muted`=%i, \
+				`Respect`=%i, \
+				`Money`=%i, \
+				`Bank`=%i, \
+				`Crimes`=%i, \
+				`Kills`=%i, \
+				`Deaths`=%i, \
+				`Arrested`=%i, \
+				`WantedDeaths`=%i, \
+				`Phonebook`=%i, \
+				`LottoNr`=%i, \
+				`Fishes`=%i, \
+				`BiggestFish`=%i, \
+				`Job`=%i, \
+				`Paycheck`=%i, \
+				`HeadValue`=%i, \
+				`Jailed`=%i, \
+				`JailTime`=%i, \
+				`Materials`=%i, \
+				`Drugs`=%i, \
+				`Leader`=%i, \
+				`Member`=%i, \
+				`FMember`=%i, \
+				`Rank`=%i, \
+				`Chara`=%i, \
+				`ContractTime`=%i, \
+				`DetSkill`=%i, \
+				`SexSkill`=%i, \
+				`BoxSkill`=%i, \
+				`LawSkill`=%i, \
+				`MechSkill`=%i, \
+				`JackSkill`=%i, \
+				`CarSkill`=%i, \
+				`NewsSkill`=%i, \
+				`DrugsSkill`=%i, \
+				`CookSkill`=%i, \
+				`FishSkill`=%i, \
+				`pSHealth`=%f, \
+				`pHealth`=%f, \
+				`Inte`=%i, \
+				`Local`=%i, \
+				`Team`=%i, \
+				`Model`=%i, \
+				`PhoneNr`=%i, \
+				`House`=%i, \
+				`Car`=%i, \
+				`Appt`=%i, \
+				`Bizz`=%i, \
+				`Pos_x`=%f, \
+				`Pos_y`=%f, \
+				`Pos_z`=%f, \
+				`CarLic`=%i, \
+				`FlyLic`=%i, \
+				`BoatLic`=%i, \
+				`FishLic`=%i, \
+				`GunLic`=%i, \
+				`Gun1`=%i, \
+				`Gun2`=%i, \
+				`Gun3`=%i, \
+				`Gun4`=%i, \
+				`Ammo1`=%i, \
+				`Ammo2`=%i, \
+				`Ammo3`=%i, \
+				`Ammo4`=%i, \
+				`Deagle`=%i, \
+				`Shotgun`=%i, \
+				`Rifle`=%i, \
+				`SDPistol`=%i, \
+				`MP5`=%i, \
+				`M4`=%i, \
+				`AK47`=%i, \
+				`CarTime`=%i, \
+				`PayDay`=%i, \
+				`PayDayHad`=%i, \
+				`CDPlayer`=%i, \
+				`Wins`=%i, \
+				`Loses`=%i, \
+				`AlcoholPerk`=%i, \
+				`DrugPerk`=%i, \
+				`MiserPerk`=%i, \
+				`PainPerk`=%i, \
+				`TraderPerk`=%i, \
+				`Tutorial`=%i, \
+				`Mission`=%i, \
+				`Warnings`=%i, \
+				`Adjustable`=%i, \
+				`Fuel`=%i, \
+				`Married`=%i, \
+				`Locked`=%i \
+				WHERE `ID`=%i",
+				PlayerInfo[playerid][pKey],
+				PlayerInfo[playerid][pLevel],
+				PlayerInfo[playerid][pAdmin],
+				PlayerInfo[playerid][pDonateRank],
+				PlayerInfo[playerid][gPupgrade],
+				PlayerInfo[playerid][pConnectTime],
+				PlayerInfo[playerid][pReg],
+				PlayerInfo[playerid][pSex],
+				PlayerInfo[playerid][pAge],
+				PlayerInfo[playerid][pOrigin],
+				PlayerInfo[playerid][pCK],
+				PlayerInfo[playerid][pMuted],
+				PlayerInfo[playerid][pExp],
+				PlayerInfo[playerid][pCash],
+				PlayerInfo[playerid][pAccount],
+				PlayerInfo[playerid][pCrimes],
+				PlayerInfo[playerid][pKills],
+				PlayerInfo[playerid][pDeaths],
+				PlayerInfo[playerid][pArrested],
+				PlayerInfo[playerid][pWantedDeaths],
+				PlayerInfo[playerid][pPhoneBook],
+				PlayerInfo[playerid][pLottoNr],
+				PlayerInfo[playerid][pFishes],
+				PlayerInfo[playerid][pBiggestFish],
+				PlayerInfo[playerid][pJob],
+				PlayerInfo[playerid][pPayCheck],
+				PlayerInfo[playerid][pHeadValue],
+				PlayerInfo[playerid][pJailed],
+				PlayerInfo[playerid][pJailTime],
+				PlayerInfo[playerid][pMats],
+				PlayerInfo[playerid][pDrugs],
+				PlayerInfo[playerid][pLeader],
+				PlayerInfo[playerid][pMember],
+				PlayerInfo[playerid][pFMember],
+				PlayerInfo[playerid][pRank],
+				PlayerInfo[playerid][pChar],
+				PlayerInfo[playerid][pContractTime],
+				PlayerInfo[playerid][pDetSkill],
+				PlayerInfo[playerid][pSexSkill],
+				PlayerInfo[playerid][pBoxSkill],
+				PlayerInfo[playerid][pLawSkill],
+				PlayerInfo[playerid][pMechSkill],
+				PlayerInfo[playerid][pJackSkill],
+				PlayerInfo[playerid][pCarSkill],
+				PlayerInfo[playerid][pNewsSkill],
+				PlayerInfo[playerid][pDrugsSkill],
+				PlayerInfo[playerid][pCookSkill],
+				PlayerInfo[playerid][pFishSkill],
+				PlayerInfo[playerid][pSHealth],
+				PlayerInfo[playerid][pHealth],
+				PlayerInfo[playerid][pInt],
+				PlayerInfo[playerid][pLocal],
+				PlayerInfo[playerid][pTeam],
+				PlayerInfo[playerid][pModel],
+				PlayerInfo[playerid][pPnumber],
+				PlayerInfo[playerid][pPhousekey],
+				PlayerInfo[playerid][pPcarkey],
+				PlayerInfo[playerid][pPapptkey],
+				PlayerInfo[playerid][pPbiskey],
+				PlayerInfo[playerid][pPos_x],
+				PlayerInfo[playerid][pPos_y],
+				PlayerInfo[playerid][pPos_z],
+				PlayerInfo[playerid][pCarLic],
+				PlayerInfo[playerid][pFlyLic],
+				PlayerInfo[playerid][pBoatLic],
+				PlayerInfo[playerid][pFishLic],
+				PlayerInfo[playerid][pGunLic],
+				PlayerInfo[playerid][pGun1],
+				PlayerInfo[playerid][pGun2],
+				PlayerInfo[playerid][pGun3],
+				PlayerInfo[playerid][pGun4],
+				PlayerInfo[playerid][pAmmo1],
+				PlayerInfo[playerid][pAmmo2],
+				PlayerInfo[playerid][pAmmo3],
+				PlayerInfo[playerid][pAmmo4],
+				PlayerInfo[playerid][pDeagle],
+				PlayerInfo[playerid][pShotgun],
+				PlayerInfo[playerid][pRifle],
+				PlayerInfo[playerid][pSDPistol],
+				PlayerInfo[playerid][pMP5],
+				PlayerInfo[playerid][pM4],
+				PlayerInfo[playerid][pAK47],
+				PlayerInfo[playerid][pCarTime],
+				PlayerInfo[playerid][pPayDay],
+				PlayerInfo[playerid][pPayDayHad],
+				PlayerInfo[playerid][pCDPlayer],
+				PlayerInfo[playerid][pWins],
+				PlayerInfo[playerid][pLoses],
+				PlayerInfo[playerid][pAlcoholPerk],
+				PlayerInfo[playerid][pDrugPerk],
+				PlayerInfo[playerid][pMiserPerk],
+				PlayerInfo[playerid][pPainPerk],
+				PlayerInfo[playerid][pTraderPerk],
+				PlayerInfo[playerid][pTut],
+				PlayerInfo[playerid][pMissionNr],
+				PlayerInfo[playerid][pWarns],
+				PlayerInfo[playerid][pAdjustable],
+				PlayerInfo[playerid][pFuel],
+				PlayerInfo[playerid][pMarried],
+				PlayerInfo[playerid][pLocked],
+				PlayerInfo[playerid][pSQLID]
+				);
+
+// Execute mit mysql_pquery
+			mysql_pquery(mysql, query);
+			//MySQLUpdateFinish(query, PlayerInfo[playerid][pSQLID]);
 		}
 	}
 	return 1;
@@ -11124,8 +11228,8 @@ public OnPlayerLogin(playerid,password[]) // by Luk0r v1.0
 		new Field[64];
 		new rcnt = 1; 
 		MySQLFetchAcctRecord(PlayerInfo[playerid][pSQLID], Data);
-		samp_mysql_strtok(Field, "|", Data);
-		while (samp_mysql_strtok(Field, "|", "")==1)
+		//samp_mysql_strtok(Field, "|", Data);
+		/*while (samp_mysql_strtok(Field, "|", "")==1)
 		{
 			// The rcnt values here represent the order of the columns in the characters table, so don't mess with them
 			// If you add a column to the table, just add a new line with a +1 rcnt to the block below
@@ -11231,8 +11335,8 @@ public OnPlayerLogin(playerid,password[]) // by Luk0r v1.0
 			if (rcnt == 102) PlayerInfo[playerid][pM4] = strval(Field);
 			if (rcnt == 103) PlayerInfo[playerid][pAK47] = strval(Field);
 			rcnt++;
-		}
-		samp_mysql_free_result();
+		}*/
+		//samp_mysql_free_result();
 	}
 	else
 	{
@@ -11290,7 +11394,7 @@ public OnPlayerLogin(playerid,password[]) // by Luk0r v1.0
 	// Add an entry to the login log
 	new ipaddress[16];
 	GetPlayerIp(playerid,ipaddress,sizeof(ipaddress));
-	MySQLAddLoginRecord(PlayerInfo[playerid][pSQLID], ipaddress);
+	MySQLAddLoginRecord(playerid);
 	
 	ClearChatbox(playerid, 8);
 	format(string2, sizeof(string2), "Server: Welcome to the State of San Andreas, %s.",playernamesplit[0]);
@@ -11338,23 +11442,7 @@ public OnPlayerLogin(playerid,password[]) // by Luk0r v1.0
 	return 1;
 }
 
-stock ini_GetKey( line[] )
-{
-	new keyRes[256];
-	keyRes[0] = 0;
-    if ( strfind( line , "=" , true ) == -1 ) return keyRes;
-    strmid( keyRes , line , 0 , strfind( line , "=" , true ) , sizeof( keyRes) );
-    return keyRes;
-}
 
-stock ini_GetValue( line[] )
-{
-	new valRes[256];
-	valRes[0]=0;
-	if ( strfind( line , "=" , true ) == -1 ) return valRes;
-	strmid( valRes , line , strfind( line , "=" , true )+1 , strlen( line ) , sizeof( valRes ) );
-	return valRes;
-}
 public OnApptUpdate()
 {
 	new idx;
@@ -11855,7 +11943,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
   				SendClientMessage(playerid,COLOR_GRAD1,"USAGE: /getip [Players ID]");
 		        return 1;
 			}
- 			giveplayerid = ReturnUser(tmp);
+ 			// 
 			GetPlayerIp( giveplayerid,playersip,sizeof(playersip));
  			format(string, sizeof(string), "Player: %s IP: %s",giveplayer,playersip);
 			SendClientMessage(playerid,COLOR_GRAD2,string);
@@ -11923,7 +12011,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					return 1;
 				}
 				//giveplayerid = strval(tmp);
-	        	giveplayerid = ReturnUser(tmp);
+	        	 
 				tmp = strtok(cmdtext, idx);
 				if(!strlen(tmp))
 				{
@@ -11932,7 +12020,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				}
 				new playa;
 				GetPlayerName(playa, sendername, sizeof(sendername));
-				playa = ReturnUser(tmp);
+				 
 				moneys = strval(tmp);
 		    	PlayerInfo[giveplayerid][pMats] = moneys;
 			    GetPlayerName(giveplayerid, giveplayer, sizeof(giveplayer));
@@ -11956,7 +12044,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					return 1;
 				}
 				//giveplayerid = strval(tmp);
-	        	giveplayerid = ReturnUser(tmp);
+	        	 
 				tmp = strtok(cmdtext, idx);
 				if(!strlen(tmp))
 				{
@@ -11965,7 +12053,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				}
 				new playa;
 				GetPlayerName(playa, sendername, sizeof(sendername));
-				playa = ReturnUser(tmp);
+				 
 				moneys = strval(tmp);
 		    	PlayerInfo[giveplayerid][pDrugs] = moneys;
 			    GetPlayerName(giveplayerid, giveplayer, sizeof(giveplayer));
@@ -11991,7 +12079,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new playa;
 			GetPlayerName(playa, sendername, sizeof(sendername));
-			playa = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 3)
 			{
 			    if(IsPlayerConnected(playa))
@@ -12027,7 +12115,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new playa;
 			GetPlayerName(playa, sendername, sizeof(sendername));
-			playa = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 3)
 			{
 			    if(IsPlayerConnected(playa))
@@ -12720,7 +12808,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			//giveplayerid = strval(tmp);
-	        giveplayerid = ReturnUser(tmp);
+	         
 			tmp = strtok(cmdtext, idx);
 			if(!strlen(tmp))
 			{
@@ -12993,7 +13081,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					return 1;
 				}
 				//giveplayerid = strval(tmp);
-	            giveplayerid = ReturnUser(tmp);
+	             
 				if(IsPlayerConnected(giveplayerid))
 				{
 				    if(giveplayerid != INVALID_PLAYER_ID)
@@ -13026,7 +13114,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					return 1;
 				}
 				//giveplayerid = strval(tmp);
-				giveplayerid = ReturnUser(tmp);
+				 
 				if(IsPlayerConnected(giveplayerid))
 				{
 				    if(giveplayerid != INVALID_PLAYER_ID)
@@ -13428,7 +13516,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	{
 		new playa;
 		GetPlayerName(playa, sendername, sizeof(sendername));
-		playa = ReturnUser(tmp);
+		 
 		tmp = strtok(cmdtext, idx);
 		if(!strlen(tmp))
 		{
@@ -13943,14 +14031,15 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			{
 				GetPlayerName(playerid, sendername, sizeof(sendername));
 				//format(string, sizeof(string), "%s.ini", sendername);
-				new sqlaccountexists = MySQLCheckAccount(sendername);
+				//new sqlaccountexists = MySQLCheckAccount(sendername);
 				//new File: hFile = fopen(string, io_read);
+				/*
 				if (sqlaccountexists != 0)
 				{
 					SendClientMessage(playerid, TEAM_AZTECAS_COLOR, "Immigration: There is already a citizen with that name.");
 					//fclose(hFile);
 					return 1;
-				}
+				}*/
 	        	new tmppass[64];
 				tmp = strtok(cmdtext, idx);
 				if(!strlen(tmp))
@@ -14757,7 +14846,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_WHITE, "USAGE: /showbadge [playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if(IsPlayerConnected(giveplayerid))
 			{
 				if(giveplayerid != INVALID_PLAYER_ID)
@@ -14808,7 +14897,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					SendClientMessage(playerid, COLOR_WHITE, "USAGE: /showid [playerid/PartOfName]");
 					return 1;
 				}
-				giveplayerid = ReturnUser(tmp);
+				 
 				if(IsPlayerConnected(giveplayerid))
 				{
 					if(giveplayerid != INVALID_PLAYER_ID)
@@ -14865,7 +14954,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			//giveplayerid = strval(tmp);
-			giveplayerid = ReturnUser(tmp);
+			 
 			if(IsACopCar(tmpcar)||PlayerToPoint(5.0, playerid, 253.9280,69.6094,1003.6406))
 			{
 				if(IsPlayerConnected(giveplayerid))
@@ -14917,7 +15006,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: (/su)spect [playerid/PartOfName] [crime discription]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if (gTeam[playerid] == 2 || IsACop(playerid))
 			{
 				if(IsPlayerConnected(giveplayerid))
@@ -15309,7 +15398,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: (/w)hisper [playerid/PartOfName] [whisper text]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if (IsPlayerConnected(giveplayerid))
 			{
 			    if(giveplayerid != INVALID_PLAYER_ID)
@@ -15508,7 +15597,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /transfer [playerid/PartOfName] [amount]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			if(!strlen(tmp))
 			{
@@ -16808,7 +16897,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /givekey [playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if(HireCar[playerid] == 299 && PlayerInfo[playerid][pPhousekey] == 255)
 			{
 				SendClientMessage(playerid, COLOR_GRAD1, "  You dont have a key to give");
@@ -17314,7 +17403,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				}
 				new target;
 				//target = strval(tmp);
-				target = ReturnUser(tmp);
+				//target = ReturnUser(tmp);
 				if (target == playerid)
 				{
 					SendClientMessage(target, COLOR_WHITE, "You cant evict yourself.");
@@ -17386,7 +17475,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					SendClientMessage(playerid, COLOR_WHITE, "USAGE: /callnumber [playerid/PartOfName] [number]");
 					return 1;
 				}
-				giveplayerid = ReturnUser(tmp);
+				 
 				if(IsPlayerConnected(giveplayerid))
 				{
 					if(giveplayerid != INVALID_PLAYER_ID)
@@ -18292,7 +18381,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 							    PlayerPaintballing[playerid] = 1;
 							    new rand = random(sizeof(PaintballSpawns));
 								SetPlayerPos(playerid, PaintballSpawns[rand][0], PaintballSpawns[rand][1], PaintballSpawns[rand][2]);
-								TogglePlayerControllable(playerid, 0);
+								 // TogglePlayerControllable(playerid, 0);
 							}
 							else if(i == 11)
 							{
@@ -18881,7 +18970,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			    SendClientMessage(playerid, COLOR_WHITE, "USAGE: /extortion [playerid/PartOfName] (or 555 for No-one)");
 			    return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if(IsPlayerConnected(giveplayerid))
 			{
 			    if(giveplayerid != INVALID_PLAYER_ID)
@@ -19158,7 +19247,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 							format(string, sizeof(string), "* %s puts on body armour.", sendername);
 							ProxDetector(30.0, playerid, string, COLOR_PURPLE,COLOR_PURPLE,COLOR_PURPLE,COLOR_PURPLE,COLOR_PURPLE);
 							SetPlayerArmour(playerid, 100.0);
-							TogglePlayerControllable(playerid, 0);
+							 // TogglePlayerControllable(playerid, 0);
 							GetPlayerPos(playerid, Unspec[playerid][sPx], Unspec[playerid][sPy], Unspec[playerid][sPz]);
 							Unspec[playerid][sPint] = PlayerInfo[playerid][pInt];
 							Unspec[playerid][sLocal] = PlayerInfo[playerid][pLocal];
@@ -19216,7 +19305,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					    SetPlayerHealth(playerid,100.0);
 					    format(string, sizeof(string), "* %s puts on body armour.", sendername);
 						ProxDetector(30.0, playerid, string, COLOR_PURPLE,COLOR_PURPLE,COLOR_PURPLE,COLOR_PURPLE,COLOR_PURPLE);
-						TogglePlayerControllable(playerid, 0);
+						 // TogglePlayerControllable(playerid, 0);
 						GetPlayerPos(playerid, Unspec[playerid][sPx], Unspec[playerid][sPy], Unspec[playerid][sPz]);
 						Unspec[playerid][sPint] = PlayerInfo[playerid][pInt];
 						Unspec[playerid][sLocal] = PlayerInfo[playerid][pLocal];
@@ -19233,7 +19322,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					return 1;
 				}
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			if(!strlen(tmp))
 			{
@@ -19414,7 +19503,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			new target;
-			target = ReturnUser(tmp);
+			//target = ReturnUser(tmp);
 			new sstring[256];
 			if(IsPlayerConnected(target))
 			{
@@ -19483,7 +19572,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			        	GameTextForPlayer(playerid, "~r~This upgrade isn't installed", 5000, 1);
 			        	return 1;
 			    	}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 				    	if(giveplayerid != INVALID_PLAYER_ID)
@@ -19597,7 +19686,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: /logoutpl [playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 4)
 			{
 			    if(IsPlayerConnected(giveplayerid)&&giveplayerid != INVALID_PLAYER_ID)
@@ -19810,7 +19899,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: /prison [playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 		    if(IsPlayerConnected(giveplayerid))
 		    {
 		        if(giveplayerid != INVALID_PLAYER_ID)
@@ -19867,7 +19956,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new playa;
 			new money;
-			playa = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			money = strval(tmp);
 			if (PlayerInfo[playerid][pAdmin] >= 1)
@@ -20005,8 +20094,8 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			/*new playa;
 			GetPlayerName(playa, sendername, sizeof(sendername));
-			playa = ReturnUser(tmp);*/
-			giveplayerid = ReturnUser(tmp);
+			 */
+			 
 			new playur;
 			playur = strval(tmp);
 
@@ -20332,7 +20421,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			new playa;
-			playa = ReturnUser(tmp);
+			 
 			new intid;
 			tmp = strtok(cmdtext, idx);
 			intid = strval(tmp);
@@ -20371,7 +20460,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			new playa;
-			playa = ReturnUser(tmp);
+			 
 			new virid;
 			tmp = strtok(cmdtext, idx);
 			virid = strval(tmp);
@@ -20469,7 +20558,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new para1;
 			new ftext[20];
-			para1 = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pLeader] >= 1)
 			{
 			    if(IsPlayerConnected(para1))
@@ -20556,7 +20645,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new para1;
 			new ftext[20];
-			para1 = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pJobLeader] >= 1)
 			{
 			    if(IsPlayerConnected(para1))
@@ -20603,7 +20692,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			new para1;
-			para1 = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pLeader] >= 1)
 			{
 			    if(IsPlayerConnected(para1))
@@ -20654,7 +20743,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new para1;
 			new level;
-			para1 = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			level = strval(tmp);
 			if (PlayerInfo[playerid][pAdmin] >= 6)
@@ -20695,7 +20784,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: /makeircadmin [playerid/PartOfName] [ChannelNr]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			if(!strlen(tmp))
 			{
@@ -20865,7 +20954,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new para1;
 			new level;
-			para1 = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			level = strval(tmp);
 			if(level > 17 || level < 0) { SendClientMessage(playerid, COLOR_GREY, "   Dont go below number 0, or above number 17!"); return 1; }
@@ -20931,7 +21020,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			new para1;
-			para1 = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 4)
 			{
 			    if(IsPlayerConnected(para1))
@@ -20995,7 +21084,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new para1;
 			new level;
-			para1 = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			level = strval(tmp);
 			if(level > 6 || level < 0) { SendClientMessage(playerid, COLOR_GREY, "   Dont go below number 0, or above number 6!"); return 1; }
@@ -21035,7 +21124,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new para1;
 			new level;
-			para1 = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			level = strval(tmp);
 			if (PlayerInfo[playerid][pAdmin] >= 2)
@@ -21335,7 +21424,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new Float:plocx,Float:plocy,Float:plocz;
 			new plo;
-			plo = ReturnUser(tmp);
+			//plo = ReturnUser(tmp);
 			if (IsPlayerConnected(plo))
 			{
 			    if(plo != INVALID_PLAYER_ID)
@@ -21401,7 +21490,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new Float:plocx,Float:plocy,Float:plocz;
 			new plo;
-			plo = ReturnUser(tmp);
+			//plo = ReturnUser(tmp);
 			if (IsPlayerConnected(plo))
 			{
 			    if(plo != INVALID_PLAYER_ID)
@@ -21926,7 +22015,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			new playa;
 			new gun;
 			new ammo;
-			playa = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			gun = strval(tmp);
 			if(!strlen(tmp))
@@ -21983,7 +22072,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			new playa;
 			new health;
 			GetPlayerName(playa, sendername, sizeof(sendername));
-			playa = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			health = strval(tmp);
 			if (PlayerInfo[playerid][pAdmin] >= 3)
@@ -22022,7 +22111,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new playa;
 			new health;
-			playa = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			health = strval(tmp);
 			if (PlayerInfo[playerid][pAdmin] >= 3)
@@ -22051,11 +22140,11 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	{
 	    if(IsPlayerConnected(playerid))
 	    {
-	        if (PlayerInfo[playerid][pAdmin] < 6)
+	        /*if (PlayerInfo[playerid][pAdmin] < 6)
 			{
 			    SendClientMessage(playerid, COLOR_GRAD1, "   you are not authorized to use that command!");
 			    return 1;
-			}
+			}*/
 			tmp = strtok(cmdtext, idx);
 			if(!strlen(tmp))
 			{
@@ -22194,7 +22283,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new playa;
 			new money;
-			playa = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			money = strval(tmp);
 			if (PlayerInfo[playerid][pAdmin] >= 5)
@@ -22233,7 +22322,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new playa;
 			new money;
-			playa = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			money = strval(tmp);
 			GetPlayerName(playerid, sendername, sizeof(sendername));
@@ -22272,7 +22361,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			new playa;
 			new Float:shealth;
 			new Float:slx, Float:sly, Float:slz;
-			playa = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >=1)
 			{
 			    if(IsPlayerConnected(playa))
@@ -22310,7 +22399,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			new playa;
-			playa = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 1)
 			{
 			    if(IsPlayerConnected(playa))
@@ -22357,7 +22446,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			new playa;
 			new Float:shealth;
 			new Float:slx, Float:sly, Float:slz;
-			playa = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 5)
 			{
 			    if(IsPlayerConnected(playa))
@@ -22391,7 +22480,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	    if(IsPlayerConnected(playerid))
 	    {
 	    	tmp = strtok(cmdtext, idx);
-			giveplayerid = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 1)
 			{
 				if(IsPlayerConnected(giveplayerid))
@@ -22445,7 +22534,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: /learn [Player ID/Part Of Name]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 3)
 			{
 				if(IsPlayerConnected(giveplayerid))
@@ -22490,7 +22579,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: /kick [playerid/PartOfName] [reason]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 1)
 			{
 				if(IsPlayerConnected(giveplayerid))
@@ -22546,7 +22635,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: /skick [playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 1)
 			{
 				if(IsPlayerConnected(giveplayerid))
@@ -22613,7 +22702,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: /warn [playerid/PartOfName] [reason]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 9)
 			{
 			    if(IsPlayerConnected(giveplayerid))
@@ -22680,7 +22769,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: /ban [playerid/PartOfName] [reason]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 2)
 			{
 			    if(IsPlayerConnected(giveplayerid))
@@ -22738,7 +22827,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			new playa;
-			playa = ReturnUser(tmp);
+			 
 			if(PlayerInfo[playa][pAdmin] > 0)
 			{
 				SendClientMessage(playerid, COLOR_GRAD2, "Admins can not be frozen");
@@ -22779,7 +22868,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			new playa;
-			playa = ReturnUser(tmp);
+			 
 			if(PlayerInfo[playa][pAdmin] > 0)
 			{
 				SendClientMessage(playerid, COLOR_GRAD2, "Admins can not be frozen");
@@ -22818,7 +22907,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			new playa;
-			playa = ReturnUser(tmp);
+			 
 			if (PlayerInfo[playerid][pAdmin] >= 1)
 			{
 			    if(IsPlayerConnected(playa))
@@ -23796,7 +23885,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /ck [playerid/PartOfName]");
 				return 1;
 			}
-	        giveplayerid = ReturnUser(tmp);
+	         
 	        if(IsPlayerConnected(giveplayerid))
 	        {
 	            if(giveplayerid != INVALID_PLAYER_ID)
@@ -23872,7 +23961,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					    SendClientMessage(playerid, COLOR_WHITE, "USAGE: /givelicense weaponlicense [playerid/PartOfName]");
 					    return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -23924,7 +24013,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					    SendClientMessage(playerid, COLOR_WHITE, "USAGE: /agivelicense driverslicense [playerid/PartOfName]");
 					    return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -23953,7 +24042,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					    SendClientMessage(playerid, COLOR_WHITE, "USAGE: /agivelicense flyinglicense [playerid/PartOfName]");
 					    return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -23982,7 +24071,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					    SendClientMessage(playerid, COLOR_WHITE, "USAGE: /agivelicense sailinglicense [playerid/PartOfName]");
 					    return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -24011,7 +24100,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					    SendClientMessage(playerid, COLOR_WHITE, "USAGE: /agivelicense fishinglicense [playerid/PartOfName]");
 					    return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -24040,7 +24129,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					    SendClientMessage(playerid, COLOR_WHITE, "USAGE: /agivelicense weaponlicense [playerid/PartOfName]");
 					    return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -24229,7 +24318,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					    SendClientMessage(playerid, COLOR_WHITE, "USAGE: /adjust invite [playerid/PartOfName]");
 					    return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -24265,7 +24354,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					    SendClientMessage(playerid, COLOR_WHITE, "USAGE: /adjust uninvite [playerid/PartOfName]");
 					    return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -24308,7 +24397,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					    SendClientMessage(playerid, COLOR_WHITE, "USAGE: /adjust rank [RankNr] [playerid/PartOfName]");
 					    return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -24419,7 +24508,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					SendClientMessage(playerid, COLOR_WHITE, "USAGE: /allowcreation [FamilyNr] [playerid/PartOfName]");
 					return 1;
 				}
-				giveplayerid = ReturnUser(tmp);
+				 
 				if(IsPlayerConnected(giveplayerid))
 				{
 				    if(giveplayerid != INVALID_PLAYER_ID)
@@ -24552,7 +24641,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				}
 				new number = strval(tmp);
 				if(number < 1 || number > 6) { SendClientMessage(playerid, COLOR_GREY, "   Camera Number can't be below 1 or above 6!"); return 1; }
-				TogglePlayerControllable(playerid, 0);
+				 // TogglePlayerControllable(playerid, 0);
 				GetPlayerPos(playerid, Unspec[playerid][Coords][0],Unspec[playerid][Coords][1],Unspec[playerid][Coords][2]);
 				if(number == 1) { SetPlayerCameraPos(playerid, 118.1011,1931.3221,22.5527); SetPlayerCameraLookAt(playerid, 98.9656,1920.9819,18.2180); }
 				else if(number == 2) { SetPlayerCameraPos(playerid, 213.5340,1875.3075,17.6406); SetPlayerCameraLookAt(playerid, 213.8679,1884.1714,13.8945); }
@@ -24589,7 +24678,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_WHITE, "USAGE: /divorce [Playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 		    if(IsPlayerConnected(giveplayerid))
 			{
 			    if(giveplayerid != INVALID_PLAYER_ID)
@@ -24659,7 +24748,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_WHITE, "USAGE: /propose [Playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 		    if(IsPlayerConnected(giveplayerid))
 			{
 			    if(giveplayerid != INVALID_PLAYER_ID)
@@ -24714,7 +24803,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_WHITE, "USAGE: /witness [Playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 		    if(IsPlayerConnected(giveplayerid))
 			{
 			    if(giveplayerid != INVALID_PLAYER_ID)
@@ -24999,7 +25088,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					    SendClientMessage(playerid, COLOR_WHITE, "USAGE: /irc kick [playerid/PartOfName]");
 					    return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -25305,7 +25394,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /prisoncell1 [playerid/PartOfName]");
 						return 1;
 					}
-			        giveplayerid = ReturnUser(tmp);
+			         
 					if (IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -25370,7 +25459,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /prisoncell2 [playerid/PartOfName]");
 						return 1;
 					}
-			        giveplayerid = ReturnUser(tmp);
+			         
 					if (IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -25435,7 +25524,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /prisoncell3 [playerid/PartOfName]");
 						return 1;
 					}
-			        giveplayerid = ReturnUser(tmp);
+			         
 					if (IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -25500,7 +25589,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /prisoncell4 [playerid/PartOfName]");
 						return 1;
 					}
-			        giveplayerid = ReturnUser(tmp);
+			         
 					if (IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -25565,7 +25654,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /prisoncell5 [playerid/PartOfName]");
 						return 1;
 					}
-			        giveplayerid = ReturnUser(tmp);
+			         
 					if (IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -25630,7 +25719,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /deliver [playerid/PartOfName]");
 						return 1;
 					}
-			        giveplayerid = ReturnUser(tmp);
+			         
 					if (IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -25680,7 +25769,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /deliver [playerid/PartOfName]");
 						return 1;
 					}
-			        giveplayerid = ReturnUser(tmp);
+			         
 					if (IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -26035,7 +26124,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					SetPlayerFacingAngle(playerid, gInviteSpawns[rand][3]);
 					SetPlayerCameraPos(playerid,gInviteSpawns[rand][0] + 3, gInviteSpawns[rand][1], gInviteSpawns[rand][2]);
 					SetPlayerCameraLookAt(playerid,gInviteSpawns[rand][0], gInviteSpawns[rand][1], gInviteSpawns[rand][2]);
-					TogglePlayerControllable(playerid, 0);
+					 // TogglePlayerControllable(playerid, 0);
 					SelectChar[playerid] = 255;
 					SelectCharID[playerid] = PlayerInfo[playerid][pMember];
 					SelectCharPlace[playerid] = 1;
@@ -26113,7 +26202,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_WHITE, "USAGE: /take driverslicense [playerid/PartOfName]");
 						return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -26146,7 +26235,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_WHITE, "USAGE: /take flyinglicense [playerid/PartOfName]");
 						return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -26179,7 +26268,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_WHITE, "USAGE: /take driverslicense [playerid/PartOfName]");
 						return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -26212,7 +26301,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_WHITE, "USAGE: /take boatlicense [playerid/PartOfName]");
 						return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -26245,7 +26334,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_WHITE, "USAGE: /take weapons [playerid/PartOfName]");
 						return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -26285,7 +26374,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_WHITE, "USAGE: /take drugs [playerid/PartOfName]");
 						return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -26318,7 +26407,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_WHITE, "USAGE: /take materials [playerid/PartOfName]");
 						return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -26649,7 +26738,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					if(!strlen(x_nr)) {
 						SendClientMessage(playerid, COLOR_WHITE, "|____________________ Bar Drinks ______________________|");
 						SendClientMessage(playerid, COLOR_WHITE, "USAGE: /drink [drinkname]");
-				  		SendClientMessage(playerid, COLOR_GREY, "Caffù: Cappuccino ($4), Latte($5), Macchiato($5)");
+				  		SendClientMessage(playerid, COLOR_GREY, "Caff?: Cappuccino ($4), Latte($5), Macchiato($5)");
 				  		SendClientMessage(playerid, COLOR_GREY, "Mixes/liqueur: Limoncello($8), Amaretto($7), Martini($12)");
 				  		SendClientMessage(playerid, COLOR_GREY, "Wine: Merlot ($15), Sangiovese($18), Frizzante($16)");
 				  		SendClientMessage(playerid, COLOR_RED, "Warning! Excessive Drinking Causes Liver Damage");
@@ -26673,7 +26762,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SafeGivePlayerMoney(playerid, - 5);
 				        SetPlayerHealth(playerid, health + 30);
 						GetPlayerName(playerid, sendername, sizeof(sendername));
-						format(string, sizeof(string), "* %s drinks from a tall glass of Caffù Latte.", sendername);
+						format(string, sizeof(string), "* %s drinks from a tall glass of Caff? Latte.", sendername);
 						ProxDetector(30.0, playerid, string, COLOR_PURPLE,COLOR_PURPLE,COLOR_PURPLE,COLOR_PURPLE,COLOR_PURPLE);
 					}
 					else if(strcmp(x_nr,"macchiato",true) == 0)
@@ -26681,7 +26770,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SafeGivePlayerMoney(playerid, - 5);
 				        SetPlayerHealth(playerid, health + 30);
 						GetPlayerName(playerid, sendername, sizeof(sendername));
-						format(string, sizeof(string), "* %s drinks from a glass mug of Caffù Macchiato.", sendername);
+						format(string, sizeof(string), "* %s drinks from a glass mug of Caff? Macchiato.", sendername);
 						ProxDetector(30.0, playerid, string, COLOR_PURPLE,COLOR_PURPLE,COLOR_PURPLE,COLOR_PURPLE,COLOR_PURPLE);
 					}
 				    else if(strcmp(x_nr,"limoncello",true) == 0)
@@ -26855,7 +26944,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_WHITE, "USAGE: /showmenu [playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if(IsPlayerConnected(giveplayerid))
 			{
 				if(giveplayerid != INVALID_PLAYER_ID)
@@ -27071,7 +27160,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					return 1;
 				}
 				//giveplayerid = strval(tmp);
-		        giveplayerid = ReturnUser(tmp);
+		         
 		        if(IsPlayerConnected(giveplayerid))
 		        {
 		            if(giveplayerid != INVALID_PLAYER_ID)
@@ -27175,7 +27264,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_WHITE, "USAGE: /fight [Playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 		    if(IsPlayerConnected(giveplayerid))
 			{
 			    if(giveplayerid != INVALID_PLAYER_ID)
@@ -27406,7 +27495,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					SendClientMessage(playerid, COLOR_WHITE, "USAGE: /tie [Playerid/PartOfName]");
 					return 1;
 				}
-				giveplayerid = ReturnUser(tmp);
+				 
 			    if(IsPlayerConnected(giveplayerid))
 				{
 				    if(giveplayerid != INVALID_PLAYER_ID)
@@ -27471,7 +27560,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					SendClientMessage(playerid, COLOR_WHITE, "USAGE: /untie [Playerid/PartOfName]");
 					return 1;
 				}
-				giveplayerid = ReturnUser(tmp);
+				 
 				if(IsPlayerConnected(giveplayerid))
 				{
 					if(giveplayerid != INVALID_PLAYER_ID)
@@ -27682,7 +27771,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					SendClientMessage(playerid, COLOR_WHITE, "USAGE: /sell cooked [cooknumber] [playerid/PartOfName]");
 					return 1;
 				}
-				giveplayerid = ReturnUser(tmp);
+				 
 				if(IsPlayerConnected(giveplayerid))
 				{
 				    if(giveplayerid != INVALID_PLAYER_ID)
@@ -28284,7 +28373,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
      				SendClientMessage(playerid, COLOR_WHITE, "USAGE: /sellpizza [playerid/PartOfName]");
      				return 1;
     			}
-    			giveplayerid = ReturnUser(tmp);
+    			 
     			if(IsPlayerConnected(giveplayerid))
     			{
         			if(giveplayerid != INVALID_PLAYER_ID)
@@ -28329,7 +28418,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			new playa;
-			playa = ReturnUser(tmp);
+			 
 			new spawn;
 			tmp = strtok(cmdtext, idx);
 			spawn = strval(tmp);
@@ -29479,7 +29568,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_WHITE, "USAGE: /showlicenses [playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if(IsPlayerConnected(giveplayerid))
 			{
 				if(giveplayerid != INVALID_PLAYER_ID)
@@ -29569,7 +29658,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_WHITE, "USAGE: /frisk [playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if(IsPlayerConnected(giveplayerid))
 			{
 				if(giveplayerid != INVALID_PLAYER_ID)
@@ -29636,7 +29725,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			//giveplayerid = strval(tmp);
-			giveplayerid = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			if(!strlen(tmp))
 			{
@@ -29701,7 +29790,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			//giveplayerid = strval(tmp);
-			giveplayerid = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			if(!strlen(tmp))
 			{
@@ -30107,7 +30196,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_WHITE, "USAGE: /steal phone [playerid/PartOfName]");
 						return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -30140,7 +30229,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SendClientMessage(playerid, COLOR_WHITE, "USAGE: /steal weapons [playerid/PartOfName]");
 						return 1;
 					}
-					giveplayerid = ReturnUser(tmp);
+					 
 					if(IsPlayerConnected(giveplayerid))
 					{
 					    if(giveplayerid != INVALID_PLAYER_ID)
@@ -30283,7 +30372,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GREY, "Specialist: shotgun(200) rifle(600)");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if(PlayerInfo[giveplayerid][pLevel] == 1)
    			{
 			        SendClientMessage(giveplayerid, COLOR_YELLOW, "You cannot buy weapons as a level 1!");
@@ -31078,7 +31167,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_WHITE, "USAGE: /forceshowlicenses [playerid/PartOfName]");
                 return 1;
             }
-            giveplayerid = ReturnUser(tmp);
+             
             if(IsPlayerConnected(giveplayerid))
             {
                 if(giveplayerid != INVALID_PLAYER_ID)
@@ -31142,7 +31231,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_WHITE, "USAGE: /licenselookup [playerid/PartOfName]");
                 return 1;
             }
-            giveplayerid = ReturnUser(tmp);
+             
             if(IsPlayerConnected(giveplayerid))
             {
 				if(PlayerInfo[playerid][pMember]==11||PlayerInfo[playerid][pLeader]==11)
@@ -31211,7 +31300,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					SendClientMessage(playerid, COLOR_WHITE, "USAGE: /cuff [Playerid/PartOfName]");
 					return 1;
 				}
-				giveplayerid = ReturnUser(tmp);
+				 
 			    if(IsPlayerConnected(giveplayerid))
 				{
 				    if(giveplayerid != INVALID_PLAYER_ID)
@@ -31311,7 +31400,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					SendClientMessage(playerid, COLOR_WHITE, "USAGE: /uncuff [Playerid/PartOfName]");
 					return 1;
 				}
-				giveplayerid = ReturnUser(tmp);
+				 
 				if(IsPlayerConnected(giveplayerid))
 				{
 					if(giveplayerid != INVALID_PLAYER_ID)
@@ -31393,7 +31482,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: /find [playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			if(IsPlayerConnected(giveplayerid))
 			{
 			    if(giveplayerid != INVALID_PLAYER_ID)
@@ -31452,7 +31541,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				return 1;
 			}
 			new money;
-			giveplayerid = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			if(!strlen(tmp)) { return 1; }
 			money = strval(tmp);
@@ -31509,7 +31598,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: /free [playerid/PartOfName]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
             if(IsPlayerConnected(giveplayerid))
             {
                 if(giveplayerid != INVALID_PLAYER_ID)
@@ -32054,7 +32143,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						SetPlayerInterior(playerid, 5); SetPlayerInterior(BoxOffer[playerid], 5);
 						SetPlayerPos(playerid, 762.9852,2.4439,1001.5942); SetPlayerFacingAngle(playerid, 131.8632);
 						SetPlayerPos(BoxOffer[playerid], 758.7064,-1.8038,1001.5942); SetPlayerFacingAngle(BoxOffer[playerid], 313.1165);
-						TogglePlayerControllable(playerid, 0); TogglePlayerControllable(BoxOffer[playerid], 0);
+						 // TogglePlayerControllable(playerid, 0); TogglePlayerControllable(BoxOffer[playerid], 0);
 						GameTextForPlayer(playerid, "~r~Waiting", 3000, 1); GameTextForPlayer(BoxOffer[playerid], "~r~Waiting", 3000, 1);
 						new name[MAX_PLAYER_NAME];
 						new dstring[MAX_PLAYER_NAME];
@@ -32353,7 +32442,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 						{
 						    SendClientMessage(playerid, COLOR_LIGHTBLUE, "* You are frozen till the Live Conversation ends.");
 							SendClientMessage(LiveOffer[playerid], COLOR_LIGHTBLUE, "* You are frozen till the Live Conversation ends (use /live again).");
-							TogglePlayerControllable(playerid, 0);
+							 // TogglePlayerControllable(playerid, 0);
 							TogglePlayerControllable(LiveOffer[playerid], 0);
 							TalkingLive[playerid] = LiveOffer[playerid];
 							TalkingLive[LiveOffer[playerid]] = playerid;
@@ -32382,7 +32471,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					SendClientMessage(playerid, COLOR_GRAD2, "USAGE: /accept lawyer [playerid/PartOfName]");
 					return 1;
 				}
-				giveplayerid = ReturnUser(tmp);
+				 
 				if (gTeam[playerid] == 2)
 				{
 				    if(IsPlayerConnected(giveplayerid))
@@ -32693,7 +32782,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new playa;
 			new money;
-			playa = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			money = strval(tmp);
 			if(money < 1 || money > 99999) { SendClientMessage(playerid, COLOR_GREY, "   Price not lower then 1, or above 99999!"); return 1; }
@@ -32743,7 +32832,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 			new playa;
 			new money;
-			playa = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			money = strval(tmp);
 			if(money < 1 || money > 99999) { SendClientMessage(playerid, COLOR_GREY, "   Price not lower then 1, or above 99999!"); return 1; }
@@ -33130,7 +33219,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					return 1;
 				}
 				//giveplayerid = strval(tmp);
-		        giveplayerid = ReturnUser(tmp);
+		         
 				if (IsPlayerConnected(giveplayerid))
 				{
 				    if(giveplayerid != INVALID_PLAYER_ID)
@@ -33184,7 +33273,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			new playa;
 			new money;
 			new needed;
-			playa = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			if(!strlen(tmp)) { return 1; }
 			needed = strval(tmp);
@@ -33323,7 +33412,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					return 1;
 				}
 				new playa;
-				playa = ReturnUser(tmp);
+				 
 				new test;
 				test = GetPlayerVehicleID(playerid);
 				if(IsPlayerConnected(playa))
@@ -33380,7 +33469,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					return 1;
 				}
 				//giveplayerid = strval(tmp);
-				giveplayerid = ReturnUser(tmp);
+				 
 				tmp = strtok(cmdtext, idx);
 				new money;
 				money = strval(tmp);
@@ -33616,7 +33705,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /clear [playerid/PartOfName]");
 					return 1;
 				}
-				giveplayerid = ReturnUser(tmp);
+				 
 				if(IsPlayerConnected(giveplayerid))
 				{
 				    if(giveplayerid != INVALID_PLAYER_ID)
@@ -33651,7 +33740,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /clear [playerid/PartOfName]");
 					return 1;
 				}
-				giveplayerid = ReturnUser(tmp);
+				 
 				if(IsPlayerConnected(giveplayerid))
 				{
 				    if(giveplayerid != INVALID_PLAYER_ID)
@@ -33723,7 +33812,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD2, "USAGE: /ticket [playerid/PartOfName] [price] [reason]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
             tmp = strtok(cmdtext, idx);
 			if(!strlen(tmp))
 			{
@@ -34156,7 +34245,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /contract [playerid/PartOfName] [amount]");
 				return 1;
 			}
-			giveplayerid = ReturnUser(tmp);
+			 
 			tmp = strtok(cmdtext, idx);
 			if(!strlen(tmp))
 			{
@@ -34513,13 +34602,14 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SendClientMessage(playerid, COLOR_GRAD1, "USAGE: /aunlock [Full Name]");
 				return 1;
 			}
+			/*
 			new sqlid = MySQLCheckAccount(tmp);
 			if (sqlid == 0)
 			{
 				SendClientMessage(playerid, COLOR_GRAD1, "Could not find this player in the database. Please ensure you have entered the name correctly.");
 				return 1;
-			}
-			MySQLUpdatePlayerIntSingle(sqlid, "Locked", 0);
+			}*/
+			//MySQLUpdatePlayerIntSingle(sqlid, "Locked", 0);
 			SendClientMessage(playerid, COLOR_YELLOW, "Account unlocked successfully. You'd better hope that wasn't a real cheating attempt.");
 		}
 		else
@@ -36288,7 +36378,7 @@ public CustomPickups()
 {
 	new Float:oldposx, Float:oldposy, Float:oldposz;
 	new string[128];
-	NameTimer();
+	//NameTimer();
 	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(IsPlayerConnected(i))
@@ -37579,7 +37669,7 @@ public OnPlayerText(playerid, text[])
 				return 0;
 			}
 			//giveplayerid = strval(tmp);
-			giveplayerid = ReturnUser(tmp);
+			 
 			if(IsPlayerConnected(giveplayerid))
 			{
 			    if(giveplayerid != INVALID_PLAYER_ID)
@@ -37880,7 +37970,7 @@ public OnPlayerText(playerid, text[])
 			}
 			new badguy;
 			//badguy = strval(tmp);
-			badguy = ReturnUser(tmp);
+			//badguy = ReturnUser(tmp);
 			if (IsPlayerConnected(badguy))
 			{
 			    if(badguy != INVALID_PLAYER_ID)
@@ -38588,7 +38678,7 @@ public CheckForWalkingTeleport(playerid) // only put teleports ON FOOT here, use
 	{
 		//Nucci Bar/cafe
 		SetPlayerPos(playerid, 1249.7533,-783.8781,1084.0078);
-		GameTextForPlayer(playerid, "~r~Caffù Bacco",5000,3);
+		GameTextForPlayer(playerid, "~r~Caff? Bacco",5000,3);
 		SetPlayerInterior(playerid,5);
 	}
 	else if (PlayerToPointStripped(2.0, playerid,254.6171,-1366.8495,53.1094, cx,cy,cz))
@@ -39739,11 +39829,104 @@ public OnPlayerExitFood(playerid)
 
 /* Stock Functions */
 
-/* ‹BERPR‹FUNG OB DER SPIELERACCOUNT EXISTIERT*/ 
 stock MySQL_CheckAccount(playerid)
 {
 	new buff[128];
-	mysql_format(mysql, buff, sizeof(buff), "SELECT id, firstl_login FROM players WHERE LOWER(Name) = LOWER('%s') LIMIT 1", PlayerInfo[playerid][pName]);
+	mysql_format(mysql, buff, sizeof(buff), "SELECT id, FirstLogin FROM players WHERE LOWER(Name) = LOWER('%s') LIMIT 1", PlayerInfo[playerid][pName]);
 	mysql_pquery(mysql, buff, "OnAccountCheck", "i", playerid);
+	print(buff);
 	return 1;
+}
+
+stock MySQLConnect(ttl = 3)
+{
+	print("[MySQL] Verbindungsaufbau...");
+	mysql_log(ALL);
+	mysql = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DB);
+
+	if(mysql_errno(mysql) != 0)
+	{
+		if(ttl > 1)
+		{
+			print("[MySQL] Es konnte keine Verbindung zur Datenbank hergestellt werden.");
+			printf("[MySQL] Starte neuen Verbindungsversuch (TTL: %d).", ttl-1);
+			return MySQLConnect(ttl-1);
+		}
+		else
+		{
+			print("[MySQL] Es konnte keine Verbindung zur Datenbank hergestellt werden.");
+			print("[MySQL] Bitte pr¸fen Sie die Verbindungsdaten.");
+			print("[MySQL] Der Server wird heruntergefahren.");
+			return SendRconCommand("exit");
+		}
+	}
+	printf("[MySQL] Die Verbindung zur Datenbank wurde erfolgreich hergestellt! Handle: %d", _:mysql);
+	return 1;
+}
+
+stock MySQLDisconnect() 
+{
+	mysql_close(mysql);
+	return 1;
+}
+
+
+
+stock MySQLCreateTables()
+{
+	printf("[MySQL] Tabellen werden erstellt...");
+    // Bans Tabelle
+    mysql_pquery(mysql, "CREATE TABLE IF NOT EXISTS `bans` (`id` INT(11) NOT NULL AUTO_INCREMENT, `type` TINYINT(2) NOT NULL, `player` INT(11) NOT NULL, `time` INT(11) NOT NULL, `amount` BIGINT(20) NOT NULL DEFAULT 0, `ip` VARCHAR(16) NOT NULL, `inactive` TINYINT(1) NOT NULL DEFAULT 0, PRIMARY KEY (`id`)) ENGINE=MyISAM DEFAULT CHARSET=latin1");
+
+    // Logins Tabelle
+    mysql_pquery(mysql, "CREATE TABLE IF NOT EXISTS `logins` (`id` INT(11) NOT NULL AUTO_INCREMENT, `time` INT(11) NOT NULL, `ip` VARCHAR(16) NOT NULL, `userid` INT(11) NOT NULL DEFAULT 0, PRIMARY KEY (`id`)) ENGINE=MyISAM DEFAULT CHARSET=latin1");
+
+    // Players Tabelle
+    mysql_pquery(mysql, "CREATE TABLE IF NOT EXISTS `players` (`id` INT(11) NOT NULL AUTO_INCREMENT, `Name` VARCHAR(50) NOT NULL, `Password` VARCHAR(50) NOT NULL, `OTP` VARCHAR(128) CHARACTER SET latin1 COLLATE latin1_swedish_ci, `FirstLogin` INT(11) DEFAULT 1, `PlayerLevel` INT(11) DEFAULT 1, `AdminLevel` INT(11) DEFAULT 0, `DonateRank` INT(11) DEFAULT 0, `UpgradePoints` INT(11) DEFAULT 0, `ConnectedTime` INT(11) DEFAULT 0, `Registered` INT(11) DEFAULT 0, `Sex` INT(11) DEFAULT 1, `Age` INT(11) DEFAULT 0, `Origin` INT(11) DEFAULT 255, `CK` INT(11) DEFAULT 0, `Muted` INT(11) DEFAULT 0, `Respect` INT(11) DEFAULT 0, `Money` BIGINT(20) DEFAULT 500, `Bank` INT(11) DEFAULT 1000, `Crimes` INT(11) DEFAULT 0, `Kills` INT(11) DEFAULT 0, `Deaths` INT(11) DEFAULT 0, `Arrested` INT(11) DEFAULT 0, `WantedDeaths` INT(11) DEFAULT 0, `Phonebook` INT(11) DEFAULT 0, `LottoNr` INT(11) DEFAULT 0, `Fishes` INT(11) DEFAULT 0, `BiggestFish` INT(11) DEFAULT 0, `Job` INT(11) DEFAULT 0, `Paycheck` INT(11) DEFAULT 0, `HeadValue` INT(11) DEFAULT 0, `Jailed` INT(11) DEFAULT 0, `JailTime` INT(11) DEFAULT 0, `Materials` INT(11) DEFAULT 0, `Drugs` INT(11) DEFAULT 0, `Leader` INT(11) DEFAULT 0, `Member` INT(11) DEFAULT 0, `FMember` INT(11) DEFAULT 255, `Rank` INT(11) DEFAULT 0, `Chara` INT(11) DEFAULT 0, `ContractTime` INT(11) DEFAULT 0, `DetSkill` INT(11) DEFAULT 0, `SexSkill` INT(11) DEFAULT 0, `BoxSkill` INT(11) DEFAULT 0, `LawSkill` INT(11) DEFAULT 0, `MechSkill` INT(11) DEFAULT 0, `JackSkill` INT(11) DEFAULT 0, `CarSkill` INT(11) DEFAULT 0, `NewsSkill` INT(11) DEFAULT 0, `DrugsSkill` INT(11) DEFAULT 0, `CookSkill` INT(11) DEFAULT 0, `FishSkill` INT(11) DEFAULT 0, `pSHealth` VARCHAR(16) DEFAULT '50.0', `pHealth` VARCHAR(16) DEFAULT '50.0', `Inte` INT(11) DEFAULT 0, `Local` INT(11) DEFAULT 255, `Team` INT(11) DEFAULT 3, `Model` INT(11) DEFAULT 264, `PhoneNr` INT(11) DEFAULT 0, `House` INT(11) DEFAULT 255, `Car` INT(11) DEFAULT 255, `Appt` INT(11) DEFAULT 255, `Bizz` INT(11) DEFAULT 255, `Pos_x` VARCHAR(16) DEFAULT '1684.9', `Pos_y` VARCHAR(16) DEFAULT '-2244.5', `Pos_z` VARCHAR(16) DEFAULT '13.5', `CarLic` INT(11) DEFAULT 0, `FlyLic` INT(11) DEFAULT 0, `BoatLic` INT(11) DEFAULT 0, `FishLic` INT(11) DEFAULT 0, `GunLic` INT(11) DEFAULT 0, `Gun1` INT(11) DEFAULT 0, `Gun2` INT(11) DEFAULT 0, `Gun3` INT(11) DEFAULT 0, `Gun4` INT(11) DEFAULT 0, `Ammo1` INT(11) DEFAULT 0, `Ammo2` INT(11) DEFAULT 0, `Ammo3` INT(11) DEFAULT 0, `Ammo4` INT(11) DEFAULT 0, `CarTime` INT(11) DEFAULT 0, `PayDay` INT(11) DEFAULT 0, `PayDayHad` INT(11) DEFAULT 0, `CDPlayer` INT(11) DEFAULT 0, `Wins` INT(11) DEFAULT 0, `Loses` INT(11) DEFAULT 0, `AlcoholPerk` INT(11) DEFAULT 0, `DrugPerk` INT(11) DEFAULT 0, `MiserPerk` INT(11) DEFAULT 0, `PainPerk` INT(11) DEFAULT 0, `TraderPerk` INT(11) DEFAULT 0, `Tutorial` INT(11) DEFAULT 0, `Mission` INT(11) DEFAULT 0, `Warnings` INT(11) DEFAULT 0, `Adjustable` INT(11) DEFAULT 0, `Fuel` INT(11) DEFAULT 0, `Married` INT(11) DEFAULT 0, `MarriedTo` VARCHAR(50) DEFAULT 'No-one', `Locked` TINYINT(1) DEFAULT 0, `Linked` INT(11) DEFAULT 1, PRIMARY KEY (`id`)) ENGINE=MyISAM DEFAULT CHARSET=latin1");
+	printf("[MySQL] Tabellen wurden erfolgreich erstellt");
+    
+    return 1;
+}
+
+
+stock MySQLCheckAccountLocked(sqlplayerid)
+{
+	new query[64];
+	mysql_format(mysql, query, sizeof(query), "SELECT Locked FROM players WHERE id = %d LIMIT 1", sqlplayerid);
+	mysql_tquery(mysql, query, "OnPlayerCheckLockedAccount", "i", sqlplayerid);
+	return 1;
+}
+
+/*public MySQLAddLoginRecord(sqlplayerid, ipaddr[]) // by Luk0r
+{
+	new query[128];
+	mysql_format(mysql, query, sizeof(query), "INSERT INTO logins (time,ip,userid) VALUES (UNIX_TIMESTAMP(),'%s',%d)", PlayerInfo[sqlplayerid][pIpAdress],PlayerInfo[sqlplayerid][pSQLID]);
+	mysql_pquery(mysql, query);
+	return 1;
+}*/
+
+stock MySQLAddLoginRecord(playerid){
+	new query[128];
+	mysql_format(mysql, query, sizeof(query), "INSERT INTO logins (time,ip,userid) VALUES (UNIX_TIMESTAMP(),'%e',%d)", PlayerInfo[sqlplayerid][pIpAdress],PlayerInfo[sqlplayerid][pSQLID]);
+	mysql_pquery(mysql, query);
+	return 1;
+}
+
+
+stock ini_GetKey( line[] )
+{
+	new keyRes[256];
+	keyRes[0] = 0;
+    if ( strfind( line , "=" , true ) == -1 ) return keyRes;
+    strmid( keyRes , line , 0 , strfind( line , "=" , true ) , sizeof( keyRes) );
+    return keyRes;
+}
+
+stock ini_GetValue( line[] )
+{
+	new valRes[256];
+	valRes[0]=0;
+	if ( strfind( line , "=" , true ) == -1 ) return valRes;
+	strmid( valRes , line , strfind( line , "=" , true )+1 , strlen( line ) , sizeof( valRes ) );
+	return valRes;
 }
