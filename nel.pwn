@@ -16,7 +16,7 @@
 #define COLOR_YELLOW       0xFFFFFF00
 #define COLOR_ORANGE       0xFFFFA500
 #define COLOR_PURPLE       0xFF800080
-#define COLOR_GRAY         0xFF808080
+#define COLOR_GRAY         0x9c9ca1AA
 #define COLOR_LIGHTGRAY    0xFFD3D3D3
 #define COLOR_DARKRED      0xFF8B0000
 #define COLOR_DARKGREEN    0xFF006400
@@ -114,7 +114,7 @@
 #define COLOR_PINK2        0xFFFFC0CB
 #define COLOR_PLUM         0xFFDDA0DD
 #define COLOR_POWDERBLUE   0xFFB0E0E6
-#define COLOR_PURPLE2      0xFF800080
+#define COLOR_PURPLE2      0xC2A2DAAA
 #define COLOR_REBECCAPURPLE 0xFF663399
 #define COLOR_ROSYBROWN    0xFFBC8F8F
 #define COLOR_ROYALBLUE    0xFF4169E1
@@ -141,16 +141,20 @@
 #define COLOR_YELLOW3      0xFFFFFF00
 #define SAMP_COLOR         0xA9C4E4FF
 #define SAMP_RED           0xF88379AA
-#define COLOR_ME           0xFFA500FF
-#define COLOR_DO           0xFFA500FF
+#define COLOR_ME           0xC2A2DAAA
+#define COLOR_DO           0xC2A2DAAA
 
 
 #define DIALOGGRAY         "{D3D3D3}"
 #define DIALOGGREEN        "{90EE90}"
 
+#define BABY_BLUE          0x709dffAA
+
+#define PICKUP_SOLD        1272
+#define PICKUP_FORSALE     1273
 
 #define SERVERNAME "Neverland e-Life"
-#define GAMEVERSION "v0.0.1 ALPHA"
+#define GAMEVERSION "v0.2 R2-1"
 #define GAMEMODE "Reallife"
 
 #define MYSQL_HOST "127.0.0.1"
@@ -158,8 +162,19 @@
 #define MYSQL_PASSWORD "Hallo123"
 #define MYSQL_DB "gta"
 
+#define MAX_HOUSES 150
+#define MAX_BIZ    200
+
 new MySQL:mysql;
 
+
+forward MySQLCreatePlayerTable();
+forward CreateHouseTable();
+forward MySQLLoadHouses();
+forward OnHousesLoaded();
+forward LoadBizz();
+forward OnBizLoaded();
+forward SaveHouse(id);
 
 #define TALK_RADIUS 20.0
 #define MAX_LINE_LENGTH 75
@@ -182,6 +197,7 @@ enum pData
     bool:pLoggedIn,
     pName[MAX_PLAYER_NAME + 1],
     pPassword[128],
+    pOTP[128],
     pFirstTime,
     pLoginTries,
     pAdmin,
@@ -199,6 +215,62 @@ enum pData
     pInterior,
     pVirtualW
 }
+
+enum E_HOUSE
+{
+    hID,
+    bool:hExists,
+    hOwner[MAX_PLAYER_NAME],
+    hAddress[40],
+    hPrice,
+    hInterior,
+    hWorld,
+    Float:hEnterX,
+    Float:hEnterY,
+    Float:hEnterZ,
+    Float:hExitX,
+    Float:hExitY,
+    Float:hExitZ,
+    bool:hLocked,
+    hPickup,
+    hIcon,
+    Text3D:hText,
+    bool:hRentable,
+    hRentPrice,
+    hSafeMoney,
+    hSafeDrugs,
+    hSafeWeapons[5],
+    hSafeAmmo[5]
+}
+
+
+
+enum E_BIZ
+{
+    bID,
+    bName[30],
+    bAddress[40],
+    bPurchaseable,
+    bPrice,
+    bOwner[MAX_PLAYER_NAME],
+    bCoOwner[MAX_PLAYER_NAME],
+    bInterior,
+    bWorld,
+    Float:bEnterX,
+    Float:bEnterY,
+    Float:bEnterZ,
+    Float:bExitX,
+    Float:bExitY,
+    Float:bExitZ,
+    bPickup,
+    Text3D:bLabel,
+    bOpen,
+    bOpeningHours[20],
+    bMoney
+}
+
+new BizInfo[MAX_BIZ][E_BIZ];
+new HouseInfo[MAX_HOUSES][E_HOUSE];
 new player[MAX_PLAYERS][pData];
 
 
@@ -207,10 +279,37 @@ new ServerMinute = 0;
 new TimerUpdateTime;
 new TimerUpdateTextdraw;
 new ConnectTimer[MAX_PLAYERS];
-
+new bool:MotorToggling[MAX_PLAYERS];
 
 
 new Text:ServerClock;
+
+
+new VehicleNames[212][] =
+{
+    "Landstalker", "Bravura", "Buffalo", "Linerunner", "Perennial", "Sentinel", "Dumper", "Firetruck", "Trashmaster", "Stretch",
+    "Manana", "Infernus", "Voodoo", "Pony", "Mule", "Cheetah", "Ambulance", "Leviathan", "Moonbeam", "Esperanto",
+    "Taxi", "Washington", "Bobcat", "Mr Whoopee", "BF Injection", "Hunter", "Premier", "Enforcer", "Securicar", "Banshee",
+    "Predator", "Bus", "Rhino", "Barracks", "Hotknife", "Trailer 1", "Previon", "Coach", "Cabbie", "Stallion",
+    "Rumpo", "RC Bandit", "Romero", "Packer", "Monster", "Admiral", "Squalo", "Seasparrow", "Pizzaboy", "Tram",
+    "Trailer 2", "Turismo", "Speeder", "Reefer", "Tropic", "Flatbed", "Yankee", "Caddy", "Solair", "Berkley's RC Van",
+    "Skimmer", "PCJ-600", "Faggio", "Freeway", "RC Baron", "RC Raider", "Glendale", "Oceanic", "Sanchez", "Sparrow",
+    "Patriot", "Quad", "Coastguard", "Dinghy", "Hermes", "Sabre", "Rustler", "ZR-350", "Walton", "Regina",
+    "Comet", "BMX", "Burrito", "Camper", "Marquis", "Baggage", "Dozer", "Maverick", "News Chopper", "Rancher",
+    "FBI Rancher", "Virgo", "Greenwood", "Jetmax", "Hotring", "Sandking", "Blista Compact", "Police Maverick", "Boxville", "Benson",
+    "Mesa", "RC Goblin", "Hotring Racer A", "Hotring Racer B", "Bloodring Banger", "Rancher", "Super GT", "Elegant", "Journey", "Bike",
+    "Mountain Bike", "Beagle", "Cropdust", "Stunt", "Tanker", "Roadtrain", "Nebula", "Majestic", "Buccaneer", "Shamal",
+    "Hydra", "FCR-900", "NRG-500", "HPV1000", "Cement Truck", "Tow Truck", "Fortune", "Cadrona", "FBI Truck", "Willard",
+    "Forklift", "Tractor", "Combine", "Feltzer", "Remington", "Slamvan", "Blade", "Freight", "Streak", "Vortex",
+    "Vincent", "Bullet", "Clover", "Sadler", "Firetruck LA", "Hustler", "Intruder", "Primo", "Cargobob", "Tampa",
+    "Sunrise", "Merit", "Utility", "Nevada", "Yosemite", "Windsor", "Monster A", "Monster B", "Uranus", "Jester",
+    "Sultan", "Stratum", "Elegy", "Raindance", "RC Tiger", "Flash", "Tahoma", "Savanna", "Bandito", "Freight Flat",
+    "Streak Carriage", "Kart", "Mower", "Duneride", "Sweeper", "Broadway", "Tornado", "AT-400", "DFT-30", "Huntley",
+    "Stafford", "BF-400", "Newsvan", "Tug", "Trailer 3", "Emperor", "Wayfarer", "Euros", "Hotdog", "Club",
+    "Freight Carriage", "Trailer 3", "Andromada", "Dodo", "RC Cam", "Launch", "Police Car (LSPD)", "Police Car (SFPD)", "Police Car (LVPD)", "Police Ranger",
+    "Picador", "S.W.A.T. Van", "Alpha", "Phoenix", "Glendale", "Sadler", "Luggage Trailer A", "Luggage Trailer B", "Stair Trailer", "Boxville",
+    "Farm Plow", "Utility Trailer"
+};
 
 main()
 {
@@ -225,6 +324,7 @@ public OnGameModeInit()
 
     DisableInteriorEnterExits();
     EnableStuntBonusForAll(0);
+    ManualVehicleEngineAndLights();
     CreateClockTD();
 
     new hour;
@@ -243,7 +343,11 @@ public OnGameModeInit()
 
 
     MySQSL_Connection();
-
+    MySQLCreatePlayerTable();
+    CreateHouseTable();
+    CreateBusinessTable();
+    LoadBizz();
+    MySQLLoadHouses();
     SetGameModeText("German Reallife");
     AddPlayerClass(0, 1958.3783, 1343.1572, 15.3746, 269.1425, 0, 0, 0, 0, 0, 0);
     return 1;
@@ -262,8 +366,11 @@ public OnGameModeExit()
 public OnPlayerRequestClass(playerid, classid)
 {
     StartLoginCamera(playerid);
-    SendClientMessage(playerid, -1, "{4682B4}INFO{FFFFFF}: Die Spielewelt wird aufgebaut, bitte um etwas Geduld ...");
-    SendClientMessage(playerid, -1, "{4682B4}INFO{FFFFFF}: Es wird ÃœberprÃ¼ft ob du einen Account hast ...");
+    SendClientMessage(playerid, SAMP_COLOR, "Herzlich willkommen auf Neverland e-Life.");
+    SendClientMessage(playerid, SAMP_COLOR, "Die Spielwelt wird für dich aufgebaut, wir bitten um etwas Geduld ...");
+    SendClientMessage(playerid, SAMP_COLOR, "Überprüfe Account ...");
+    //SendClientMessage(playerid, -1, "{6b8bc2}INFO{FFFFFF}: Die Spielewelt wird aufgebaut, bitte um etwas Geduld ...");
+    //SendClientMessage(playerid, -1, "{6b8bc2}INFO{FFFFFF}: Es wird Überprüft ob du einen Account hast ...");
     if (!player[playerid][pLoggedIn]) ConnectTimer[playerid] = SetTimerEx("ConnectDelay", 10000, false, "i", playerid);
     return 1;
 }
@@ -273,7 +380,7 @@ forward ConnectDelay(playerid);
 public ConnectDelay(playerid)
 {
     new buffer[128];
-    mysql_format(mysql, buffer, sizeof(buffer), "SELECT id, first_login FROM players WHERE name = '%e'", player[playerid][pName]);
+    mysql_format(mysql, buffer, sizeof(buffer), "SELECT id, FirstLogin FROM players WHERE name = '%e'", player[playerid][pName]);
     mysql_pquery(mysql, buffer, "OnPlayerCheck", "d", playerid);
     return 1;
 }
@@ -287,20 +394,20 @@ public OnPlayerCheck(playerid)
     cache_get_row_count(r);
     if (r == 0)
     {
-        format(buf, sizeof(buf), "{90EE90}Willkommen auf Neverland e-Life.com!\n\n{D3D3D3}Es konnte kein Account unter dem Namen {4682B4}%s{D3D3D3} gefunden werden.\n\nUm auf unserem SA:MP Server spielen zu kÃ¶nnen, musst du dich zuerst im Forum registrieren.\nNach erfolgreicher Registration im Forum, kannst du einen Spieleraccount erstellen.\nSobald du einen Spieleraccount erstellt hast, kannst du dich\nmit unserem SA:MP Server verbinden und dein neues Abenteuer starten!\n\n{90EE90}Wir wÃ¼nschen dir viel SpaÃŸ und freuen uns dich bald begrÃ¼ÃŸen zu dÃ¼rfen!\n\n{4682B4}FORUM: www.neverland-elife.com", player[playerid][pName]);
+        format(buf, sizeof(buf), "{90EE90}Willkommen auf Neverland e-Life.com!\n\n{D3D3D3}Es konnte kein Account unter dem Namen {4682B4}%s{D3D3D3} gefunden werden.\n\nUm auf unserem SA:MP Server spielen zu können, musst du dich zuerst im Forum registrieren.\nNach erfolgreicher Registration im Forum, kannst du einen Spieleraccount erstellen.\nSobald du einen Spieleraccount erstellt hast, kannst du dich\nmit unserem SA:MP Server verbinden und dein neues Abenteuer starten!\n\n{90EE90}Wir wünschen dir viel Spaß und freuen uns dich bald begrüßen zu dürfen!\n\n{4682B4}Forum: {FFFFFF}www.neverland-elife.com", player[playerid][pName]);
         ShowPlayerDialog(playerid, DIALOG_NOACC, DIALOG_STYLE_MSGBOX, "Registrierung erforderlich!", buf, "Verstanden", "");
         Kick(playerid);
     }
     else
     {
-        cache_get_value_name_int(0, "first_login", player[playerid][pFirstTime]);
+        cache_get_value_name_int(0, "FirstLogin", player[playerid][pFirstTime]);
         if (!player[playerid][pFirstTime])
         {
-            ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Anmeldung", #DIALOGGRAY"Willkommen zurÃ¼ck!\n\nBitte trage dein Passwort unten in das Eingabefeld ein:\n\n{F88379}INFO: Bitte beachte, dass du 3 Versuche hast das Passwort korrekt einzugeben.", "Ok", "Abbrechen");
+            ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Anmeldung", #DIALOGGRAY"Willkommen zurück!\n\nBitte trage dein Passwort unten in das Eingabefeld ein:\n\n{F88379}INFO: Bitte beachte, dass du 3 Versuche hast das Passwort korrekt einzugeben.", "Ok", "Abbrechen");
         }
         else
         {
-            ShowPlayerDialog(playerid, DIALOG_FIRST_LOGIN, DIALOG_STYLE_PASSWORD, "Erste Anmeldung", #DIALOGGRAY"Herzlich Willkommen!\n\nBitte gib das Einmalpasswort ein welches du von einem Administrator erhalten hast:\n\n{F88379}INFO: Im Anschluss wirst du gebeten ein neues Passwort einzugeben.", "Ok", "Abbrechen");
+            ShowPlayerDialog(playerid, DIALOG_FIRST_LOGIN, DIALOG_STYLE_PASSWORD, "Erste Anmeldung", #DIALOGGRAY"Herzlich Willkommen!\n\nBitte gib das Einmalpasswort ein welches du von einem Administrator erhalten hast:\n\n{F88379}Info: Im Anschluss wirst du gebeten ein neues Passwort einzugeben.", "Ok", "Abbrechen");
         }
     }
     return 1;
@@ -313,7 +420,7 @@ public OnPlayerConnect(playerid)
         SendClientMessage(playerid, -1, "");
     }
     SetPlayerTime(playerid, ServerHour, ServerMinute);
-    SendClientMessage(playerid, -1, "Herzlich Willkommen auf {4169E1}Neverland e-Life{FFFFFF}. ({4169E1}www.neverland-elife.com{FFFFFF})");
+    //SendClientMessage(playerid, -1, "Herzlich Willkommen auf {4169E1}Neverland e-Life{FFFFFF}. ({4169E1}www.neverland-elife.com{FFFFFF})");
     for (new i = 0; i < _:pData; i++)
     {
         player[playerid][pData:i] = 0;
@@ -398,7 +505,7 @@ public OnPlayerText(playerid, text[])
         }
         part1[splitPos] = 0;
 
-        // Kopiere zweiten Teil (ï¿½berspringe Leerzeichen)
+        // Kopiere zweiten Teil (berspringe Leerzeichen)
         new pos = 0;
         for (new i = splitPos + 1; i < len; i++)
         {
@@ -429,6 +536,18 @@ public OnPlayerText(playerid, text[])
 
 public OnPlayerEnterVehicle(playerid, vehicleid, ispassenger)
 {
+    new vid = GetPlayerVehicleID(playerid);
+    new e, lights, alarm, doors, bonnet, boot, objective;
+    GetVehicleParamsEx(vehicleid, e, lights, alarm, doors, bonnet, boot, objective);
+
+    if (e == 1)
+    {
+        SendClientMessage(playerid, -1, "[Debug:] Motor an");
+    }
+    else
+    {
+        SendClientMessage(playerid, -1, "[Debug:] Motor aus");
+    }
     return 1;
 }
 
@@ -512,6 +631,8 @@ public OnPlayerExitedMenu(playerid)
     return 1;
 }
 
+
+
 public OnPlayerInteriorChange(playerid, newinteriorid, oldinteriorid)
 {
     return 1;
@@ -560,7 +681,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
         case DIALOG_FIRST_LOGIN:
         {
             if (!response) return Kick(playerid);
-            mysql_format(mysql, buf, sizeof(buf), "SELECT * FROM players WHERE name = '%e' AND password = '%e'", player[playerid][pName], inputtext);
+            mysql_format(mysql, buf, sizeof(buf), "SELECT * FROM players WHERE name = '%e' AND otp = '%e'", player[playerid][pName], inputtext);
             mysql_pquery(mysql, buf, "OnPlayerLogin", "d", playerid);
             print(buf);
             return 1;
@@ -583,28 +704,28 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
             if (!response) return Kick(playerid);
             if (strlen(inputtext) < 8)
             {
-                ShowPlayerDialog(playerid, DIALOG_SETPASS, DIALOG_STYLE_PASSWORD, "Neues Passwort", "{FFFFFF}Das von dir eingegebene Passwort entspricht nicht den Mindestanforderungen.\n\nBitte gib ein sicheres Passwort ein:\n\n"#DIALOGGREEN"** Das Passwort muss mindestens 8 Zeichen lang sein\n** Das Passwort muss mindestens 1 Sonderzeichen enthalten\n** Das Passwort muss mindestens eine Zahl enthalten\n\n"#DIALOGGRAY"Bitte merke dir dein Passwort.", "Weiter", "Abbrechen");
+                ShowPlayerDialog(playerid, DIALOG_SETPASS, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Das von dir eingegebene Passwort entspricht nicht den Mindestanforderungen.\n\nBitte gib ein sicheres Passwort ein:\n\n"#DIALOGGREEN"** Das Passwort muss mindestens 8 Zeichen lang sein\n** Das Passwort muss mindestens 1 Sonderzeichen enthalten\n** Das Passwort muss mindestens eine Zahl enthalten\n** Das Passwort muss mindestens einen Großbuchstaben enthalten\n\n"#DIALOGGRAY"Bitte merke dir dein Passwort.", "Weiter", "Abbrechen");
                 return 1;
             }
             if (!IsPasswordValid(inputtext))
             {
 
-                ShowPlayerDialog(playerid, DIALOG_SETPASS, DIALOG_STYLE_PASSWORD, "Neues Passwort", "{FFFFFF}Das von dir eingegebene Passwort entspricht nicht den Mindestanforderungen.\n\nBitte gib ein sicheres Passwort ein:\n\n"#DIALOGGREEN"** Das Passwort muss mindestens 8 Zeichen lang sein\n** Das Passwort muss mindestens 1 Sonderzeichen enthalten\n** Das Passwort muss mindestens eine Zahl enthalten\n\n"#DIALOGGRAY"Bitte merke dir dein Passwort.", "Weiter", "Abbrechen");
+                ShowPlayerDialog(playerid, DIALOG_SETPASS, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Das von dir eingegebene Passwort entspricht nicht den Mindestanforderungen.\n\nBitte gib ein sicheres Passwort ein:\n\n"#DIALOGGREEN"** Das Passwort muss mindestens 8 Zeichen lang sein\n** Das Passwort muss mindestens 1 Sonderzeichen enthalten\n** Das Passwort muss mindestens eine Zahl enthalten\n\n** Das Passwort muss mindestens einen Großbuchstaben enthalten\n\n"#DIALOGGRAY"Bitte merke dir dein Passwort.", "Weiter", "Abbrechen");
                 return 1;
             }
             format(player[playerid][pPassword], 128, "%s", inputtext);
-            ShowPlayerDialog(playerid, DIALOG_PASSWORD_CONFIRM, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Sehr gut! Bitte gib das Passwort, zur Bestï¿½tigung, erneut ein:", "Weiter", "Abbrachen");
+            ShowPlayerDialog(playerid, DIALOG_PASSWORD_CONFIRM, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Sehr gut! Bitte gib das Passwort, zur Bestätigung, erneut ein:", "Weiter", "Abbrechen");
             return 1;
         }
         case DIALOG_PASSWORD_CONFIRM:
         {
             if (!response) return Kick(playerid);
-            if (strcmp(player[playerid][pPassword], inputtext, false))
+            if (strcmp(player[playerid][pPassword], inputtext))
             {
-                ShowPlayerDialog(playerid, DIALOG_PASSWORD_CONFIRM, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Bitte gib das Passwort, zur Bestï¿½tigung, erneut ein:\n\n{FF0000}Die Passwï¿½rter stimmen nicht ï¿½berein. Bitte versuche es erneut!", "Weiter", "Abbrachen");
+                ShowPlayerDialog(playerid, DIALOG_PASSWORD_CONFIRM, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Bitte gib das Passwort, zur Bestätigung, erneut ein:\n\n{FF0000}Die Passwörter stimmen nicht überein. Bitte versuche es erneut!", "Weiter", "Abbrachen");
                 return 1;
             }
-            mysql_format(mysql, buf, sizeof(buf), "UPDATE players SET password = MD5('%e'), first_login = 0 WHERE name = '%e'", player[playerid][pPassword], player[playerid][pName]);
+            mysql_format(mysql, buf, sizeof(buf), "UPDATE players SET password = MD5('%e'), FirstLogin = 0 WHERE name = '%e'", player[playerid][pPassword], player[playerid][pName]);
             mysql_tquery(mysql, buf);
             MySQL_LoadPlayer(playerid);
         }
@@ -634,7 +755,7 @@ public OnPlayerLogin(playerid)
         {
             player[playerid][pLoginTries]++;
             if (player[playerid][pLoginTries] >= 3) return Kick(playerid);
-            ShowPlayerDialog(playerid, DIALOG_FIRST_LOGIN, DIALOG_STYLE_PASSWORD, "Erste Anmeldung", "{FFFF00}Du hast das falsche Passwort eingegeben!"#DIALOGGRAY"\n\nBitte gib das Einmalpasswort ein welches du von einem Administrator erhalten hast:\n\n{F88379}INFO: Im Anschluss wirst du gebeten ein neues Passwort einzugeben.", "Ok", "Abbrechen");
+            ShowPlayerDialog(playerid, DIALOG_FIRST_LOGIN, DIALOG_STYLE_PASSWORD, "Erste Anmeldung", "{FFFF00}Du hast das falsche Passwort eingegeben!"#DIALOGGRAY"\n\nBitte gib das Einmalpasswort ein welches du von einem Administrator erhalten hast:\n\n{F88379}Info: Im Anschluss wirst du gebeten ein neues Passwort einzugeben.", "Ok", "Abbrechen");
             format(buf, sizeof(buf), "{AA3333}ERROR{FFFFFF}: Falsches Passwort! Das ist der %d. Fehlversuch von 3.", player[playerid][pLoginTries]);
             SendClientMessage(playerid, -1, buf);
         }
@@ -651,7 +772,7 @@ public OnPlayerLogin(playerid)
         {
             //Neues Passwort vergeben
             player[playerid][pLoginTries] = 0;
-            ShowPlayerDialog(playerid, DIALOG_SETPASS, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Das Einmalpasswort wurde korrekt eingegeben.\n\nDu kannst nun dein eigenes Passwort vergeben.\n\n"#DIALOGGREEN"** Das Passwort muss mindestens 8 Zeichen lang sein\n** Das Passwort muss mindestens 1 Sonderzeichen enthalten\n** Das Passwort muss mindestens eine Zahl enthalten\n\n"#DIALOGGRAY"Bitte merke dir dein Passwort.", "Weiter", "Abbrechen");
+            ShowPlayerDialog(playerid, DIALOG_SETPASS, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Das Einmalpasswort wurde korrekt eingegeben.\n\nDu kannst nun dein eigenes Passwort vergeben.\n\n"#DIALOGGREEN"** Das Passwort muss mindestens 8 Zeichen lang sein\n** Das Passwort muss mindestens 1 Sonderzeichen enthalten\n** Das Passwort muss mindestens eine Zahl enthalten\n** Das Passwort muss mindestens einen Großbuchstaben enthalten\n\n"#DIALOGGRAY"Bitte merke dir dein Passwort.", "Weiter", "Abbrechen");
 
         }
     }
@@ -671,7 +792,7 @@ public UpdateServerClock()
     UpdateClockTextdraw();
     ServerMinute += 1;
 
-    // Wenn 60 Minuten erreicht, zur nï¿½chsten Stunde
+    // Wenn 60 Minuten erreicht, zur nchsten Stunde
     if (ServerMinute >= 60)
     {
         ServerMinute = 0;
@@ -683,7 +804,7 @@ public UpdateServerClock()
             ServerHour = 0;
         }
 
-        // Spielzeit fï¿½r alle Spieler aktualisieren
+        // Spielzeit fr alle Spieler aktualisieren
         SetWorldTime(ServerHour);
 
         // Tag/Nacht-Zyklus aktualisieren
@@ -697,7 +818,7 @@ stock UpdateClockTextdraw()
     new string[16];
     format(string, sizeof(string), "%02d:%02d", ServerHour, ServerMinute);
     TextDrawSetString(ServerClock, string);
-    return 1;  // ? NEU: return hinzugefï¿½gt
+    return 1;  // ? NEU: return hinzugefgt
 }
 
 stock MySQSL_Connection(ttl = 3)
@@ -718,7 +839,7 @@ stock MySQSL_Connection(ttl = 3)
         else
         {
             print("[MySQL] Es konnte keine Verbindung zur Datenbank hergestellt werden.");
-            print("[MySQL] Bitte prï¿½fen Sie die Verbindungsdaten.");
+            print("[MySQL] Bitte prfen Sie die Verbindungsdaten.");
             print("[MySQL] Der Server wird heruntergefahren.");
             return SendRconCommand("exit");
         }
@@ -753,10 +874,10 @@ stock UpdateDayNightCycle()
     {
         weather = 1; // Klare Nacht
     }
-    // Morgendï¿½mmerung (5-7 Uhr) - Wird hell
+    // Morgendmmerung (5-7 Uhr) - Wird hell
     else if (ServerHour >= 5 && ServerHour < 7)
     {
-        weather = 2; // Neblig/Dï¿½mmerung
+        weather = 2; // Neblig/Dmmerung
     }
     // Morgen (7-11 Uhr) - Hell
     else if (ServerHour >= 7 && ServerHour < 11)
@@ -773,10 +894,10 @@ stock UpdateDayNightCycle()
     {
         weather = 10; // Sonnig
     }
-    // Abenddï¿½mmerung (18-20 Uhr) - Wird dunkel
+    // Abenddmmerung (18-20 Uhr) - Wird dunkel
     else if (ServerHour >= 18 && ServerHour < 20)
     {
-        weather = 33; // Orange Himmel/Dï¿½mmerung
+        weather = 33; // Orange Himmel/Dmmerung
     }
     // Abend/Nacht (20-24 Uhr) - Dunkel
     else
@@ -818,6 +939,7 @@ stock MySQL_SavePlayer(playerid)
 
 stock MySQL_LoadPlayer(playerid)
 {
+    new buff[128];
     cache_get_value_name_int(0, "ID", player[playerid][p_id]);
     cache_get_value_name_int(0, "level", player[playerid][pLevel]);
     cache_get_value_name_int(0, "money", player[playerid][pMoney]);
@@ -843,7 +965,7 @@ stock MySQL_LoadPlayer(playerid)
         SetPlayerFacingAngle(playerid, 168.2152);
         SetPlayerInterior(playerid, 0);
         SetPlayerVirtualWorld(playerid, 0);
-        SetPlayerSkin(playerid, 12);
+        SetPlayerSkin(playerid, player[playerid][pSkin]);
     }
     else
     {
@@ -856,7 +978,14 @@ stock MySQL_LoadPlayer(playerid)
         SetPlayerVirtualWorld(playerid, player[playerid][pVirtualW]);
         SetPlayerSkin(playerid, player[playerid][pSkin])
     }
-
+    for (new i = 0; i < 100; i++)
+    {
+        SendClientMessage(playerid, -1, "");
+    }
+    format(buff, sizeof(buff), "Herzlich willkommen zurück, %s!", player[playerid][pName]);
+    SendClientMessage(playerid, SAMP_COLOR, buff);
+    SendClientMessage(playerid, SAMP_COLOR, "Wir freuen uns, dich auf auf Neverland e-Life begrüßen zu dürfen.");
+    SendClientMessage(playerid, SAMP_COLOR, "Viel Spaß!");
     switch (player[playerid][pAdmin])
     {
         case 1:
@@ -903,36 +1032,30 @@ stock StopLoginCamera(playerid)
     return 1;
 }
 
-stock bool:IsPasswordValid(const password[])
+stock IsPasswordValid(const password[])
 {
     new len = strlen(password);
 
     // Mindestens 8 Zeichen
-    if (len < 8) return false;
+    if (len < 8)
+        return 0;
 
-    new bool:hasNumber = false;
-    new bool:hasSpecial = false;
+    new hasUpper = 0, hasNumber = 0, hasSpecial = 0;
 
     for (new i = 0; i < len; i++)
     {
-        // Prï¿½fe auf Zahl (0-9)
-        if (password[i] >= '0' && password[i] <= '9')
-        {
-            hasNumber = true;
-        }
-        // Prï¿½fe auf Sonderzeichen (alles auï¿½er Buchstaben und Zahlen)
-        else if (!(password[i] >= 'a' && password[i] <= 'z') &&
-                 !(password[i] >= 'A' && password[i] <= 'Z') &&
-                 !(password[i] >= '0' && password[i] <= '9'))
-        {
-            hasSpecial = true;
-        }
-
-        // Wenn beide gefunden, kï¿½nnen wir abbrechen
-        if (hasNumber && hasSpecial) return true;
+        if (password[i] >= 'A' && password[i] <= 'Z')
+            hasUpper = 1;
+        else if (password[i] >= '0' && password[i] <= '9')
+            hasNumber = 1;
+        else if (password[i] == '!' || password[i] == '@' || password[i] == '#' ||
+                 password[i] == '$' || password[i] == '%' || password[i] == '&' ||
+                 password[i] == '*' || password[i] == '?' || password[i] == '_' ||
+                 password[i] == '-' || password[i] == '+' || password[i] == '=')
+            hasSpecial = 1;
     }
 
-    return (hasNumber && hasSpecial);
+    return (hasUpper && hasNumber && hasSpecial);
 }
 
 // Befehl zum Anzeigen der Zeit
@@ -1103,6 +1226,164 @@ CMD:do(playerid, params[])
     return 1;
 }
 
+
+stock GetVehicleName(vehicleid)
+{
+    new vehiclename[32];
+
+    // Überprüfen ob das Fahrzeug existiert
+
+
+    new modelid = GetVehicleModel(vehicleid);
+    format(vehiclename, sizeof(vehiclename), "%s", VehicleNames[modelid - 400]);
+    return vehiclename;
+}
+
+
+/* ------------------ USER COMMANDS ----------------------- */
+
+
+CMD:motor(playerid, params[])
+{
+    new vid = GetPlayerVehicleID(playerid);
+    new buf[128];
+    if (!IsPlayerInAnyVehicle(playerid)) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist in keinem Fahrzeug.");
+    if (GetPlayerState(playerid) != PLAYER_STATE_DRIVER) return SendClientMessage(playerid, COLOR_GRAY, "    Du bist nicht der Fahrer dieses Fahrzeugs.");
+
+    new e, l, a, d, b, boot, o;
+    GetVehicleParamsEx(vid, e, l, a, d, b, boot, o);
+    if (e == 1)
+    {
+        SetVehicleParamsEx(vid, 0, 0, a, d, b, boot, o);
+        format(buf, sizeof(buf), "Du hast den Motor deiner/deines %s ausgemacht.", GetVehicleName(vid));
+        SendClientMessage(playerid, COLOR_GRAY, buf);
+        SendMeMessage(playerid, "dreht den Zündschlüssel und schaltet den Motor aus.");
+    }
+    else
+    {
+        SetVehicleParamsEx(vid, 1, 1, a, d, b, boot, o);
+        format(buf, sizeof(buf), "Du hast den Motor deiner/deines %s gestartet.", GetVehicleName(vid));
+        SendClientMessage(playerid, COLOR_GRAY, buf);
+        SendMeMessage(playerid, "dreht den Zündschlüssel und startet den Motor.");
+    }
+    return 1;
+}
+
+
+
+CMD:buyhouse(playerid, params[])
+{
+    new bool:nearHouse = false;
+
+    for (new i = 0; i < sizeof(HouseInfo); i++)
+    {
+        if (!HouseInfo[i][hID]) continue;
+        if (!IsPlayerInRangeOfPoint(playerid, 5.0, HouseInfo[i][hEnterX], HouseInfo[i][hEnterY], HouseInfo[i][hEnterZ])) continue;
+        nearHouse = true;
+        if (!strlen(HouseInfo[i][hOwner]))
+        {
+            if (GetPlayerMoney(playerid) < HouseInfo[i][hPrice]) return SendClientMessage(playerid, COLOR_GRAY, "   Du hast nix money");
+            //hier money abzeiehen;
+            strmid(HouseInfo[i][hOwner], player[playerid][pName], 0, MAX_PLAYER_NAME, MAX_PLAYER_NAME);
+            UpdateHouse(i);
+            SaveHouse(i);
+            SendClientMessage(playerid, -1, "Haus gekauft");
+            return 1;
+        }
+        return SendClientMessage(playerid, COLOR_GRAY, "    Dieses Haus steht nicht zum Verkauf.");
+    }
+
+    if (!nearHouse) return SendClientMessage(playerid, -1, "Da ist kein Haus");
+
+    return 1;
+}
+
+CMD:sellhouse(playerid, params[])
+{
+    new bool:nearHouse = false;
+
+    for (new i = 0; i < sizeof(HouseInfo); i++)
+    {
+        if (!HouseInfo[i][hID]) continue;
+        if (!IsPlayerInRangeOfPoint(playerid, 5.0, HouseInfo[i][hEnterX], HouseInfo[i][hEnterY], HouseInfo[i][hEnterZ])) continue;
+
+        nearHouse = true;
+
+        if (!strlen(HouseInfo[i][hOwner])) continue;
+
+        if (!strcmp(HouseInfo[i][hOwner], player[playerid][pName], true))
+        {
+            GivePlayerMoney(playerid, HouseInfo[i][hPrice] / 2);
+            strmid(HouseInfo[i][hOwner], "", 0, MAX_PLAYER_NAME, MAX_PLAYER_NAME);
+            UpdateHouse(i);
+            SaveHouse(i);
+            SendClientMessage(playerid, -1, "Haus verkauft");
+            return 1;
+        }
+        else
+        {
+            return SendClientMessage(playerid, COLOR_GRAY, "    Das Haus gehört nicht dir.");
+        }
+    }
+
+    if (!nearHouse) return SendClientMessage(playerid, -1, "Da ist kein Haus");
+    return 1;
+}
+
+
+/* ------------------ ADMIN COMMANDS ---------------------- */
+
+
+CMD:createhouse(playerid, params[])
+{
+    return 1;
+}
+
+
+CMD:givemoney(playerid, params[])
+{
+    new targetid, amount;
+    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berrechtigt diesen Befehl zu nutzen.");
+    if (sscanf(params, "ud", targetid, amount)) return SendClientMessage(playerid, COLOR_GRAY, "BENUTZUNG: /givemoney [ID/Name] [Betrag]");
+    GivePlayerMoney(targetid, amount);
+    return 1;
+}
+
+CMD:cveh(playerid, params[])
+{
+    new vid, c1, c2, model;
+    new Float:x, Float:y, Float:z;
+    new buf[128];
+    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berrechtigt diesen Befehl zu nutzen.");
+    if (sscanf(params, "ddd", model, c1, c2)) return SendClientMessage(playerid, COLOR_GRAY, "BENUTZUNG: /cveh [Model-ID] [Farbe] [Farbe]");
+    if (model < 400 || model > 611) return SendClientMessage(playerid, COLOR_GRAY, "   Du hast eine ungültige Model-ID eingegeben.");
+    GetPlayerPos(playerid, x, y, z);
+    vid = CreateVehicle(model, x, y, z + 2.0, 0.0, c1, c2, -1, -1);
+    PutPlayerInVehicle(playerid, vid, 0);
+    format(buf, sizeof(buf), "   Du hast erfolgreich ein Fahrzeug erstellt: {A9C4E4}%s", GetVehicleName(vid));
+    SendClientMessage(playerid, COLOR_GRAY, buf);
+    return 1;
+}
+
+CMD:sethp(playerid, params[])
+{
+    new targetid, Float:health, buf[128];
+    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berrechtigt diesen Befehl zu nutzen.");
+    if (sscanf(params, "uf", targetid, health)) return SendClientMessage(playerid, COLOR_GRAY, "BENUTZUNG: /sethp [ID/Name] [HP]");
+    if (!IsPlayerConnected(targetid)) return SendClientMessage(playerid, COLOR_GRAY, "   Der Spieler ist nicht mit dem Server verbunden.");
+    SetPlayerHealth(targetid, health);
+    format(buf, sizeof(buf), "   Du hast das Leben von %s gesetzt: {A9C4E4}%.1f", player[targetid][pName], health);
+    SendClientMessage(playerid, COLOR_GRAY, buf);
+    return 1;
+}
+
+CMD:restart(playerid, params[])
+{
+    if (player[playerid][pAdmin] < 1337) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berrechtigt diesen Befehl zu nutzen.");
+    SendRconCommand("gmx");
+    return 1;
+}
+
 CMD:nrg(playerid, params[])
 {
     new Float:x, Float:y, Float:z, Float:a;
@@ -1111,4 +1392,458 @@ CMD:nrg(playerid, params[])
     CreateVehicle(522, x + 2, y, z, a, -1, -1, -1);
     SendClientMessage(playerid, -1, "NRG-500 gespawnt!");
     return 1;
+}
+
+
+
+
+
+
+
+
+public MySQLCreatePlayerTable()
+{
+    mysql_tquery(mysql,
+                 "CREATE TABLE IF NOT EXISTS `players` (\
+            `ID` INT(11) NOT NULL AUTO_INCREMENT,\
+            `name` VARCHAR(24) NOT NULL,\
+            `password` VARCHAR(128) NOT NULL DEFAULT '',\
+            `otp` VARCHAR(16) NOT NULL DEFAULT '',\
+            `FirstLogin` TINYINT(1) NOT NULL DEFAULT 1,\
+            `level` INT(11) NOT NULL DEFAULT 1,\
+            `money` INT(11) NOT NULL DEFAULT 500,\
+            `kills` INT(11) NOT NULL DEFAULT 0,\
+            `deaths` INT(11) NOT NULL DEFAULT 0,\
+            `admin` INT(11) NOT NULL DEFAULT 0,\
+            `posx` FLOAT NOT NULL DEFAULT 0.0,\
+            `posy` FLOAT NOT NULL DEFAULT 0.0,\
+            `posz` FLOAT NOT NULL DEFAULT 0.0,\
+            `posa` FLOAT NOT NULL DEFAULT 0.0,\
+            `interior` INT(11) NOT NULL DEFAULT 0,\
+            `virtualw` INT(11) NOT NULL DEFAULT 0,\
+            `skin` INT(11) NOT NULL DEFAULT 0,\
+            PRIMARY KEY (`ID`),\
+            UNIQUE KEY `name` (`name`)\
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+                );
+
+    print("[MySQL] Spieler-Tabelle wurde ueberprueft/erstellt.");
+}
+
+
+public CreateHouseTable()
+{
+    new query[1024];
+    query[0] = '\0'; // Wichtig – String leeren, bevor strcat genutzt wird
+
+    strcat(query, "CREATE TABLE IF NOT EXISTS `houses` (");
+    strcat(query, "`id` INT(11) NOT NULL AUTO_INCREMENT,");
+    strcat(query, "`owner` VARCHAR(24) DEFAULT 'Keiner',");
+    strcat(query, "`price` INT(11) DEFAULT 0,");
+    strcat(query, "`interior` INT(11) DEFAULT 0,");
+    strcat(query, "`world` INT(11) DEFAULT 0,");
+    strcat(query, "`enter_x` FLOAT DEFAULT 0,");
+    strcat(query, "`enter_y` FLOAT DEFAULT 0,");
+    strcat(query, "`enter_z` FLOAT DEFAULT 0,");
+    strcat(query, "`exit_x` FLOAT DEFAULT 0,");
+    strcat(query, "`exit_y` FLOAT DEFAULT 0,");
+    strcat(query, "`exit_z` FLOAT DEFAULT 0,");
+    strcat(query, "`locked` TINYINT(1) DEFAULT 0,");
+    strcat(query, "`rentable` TINYINT(1) DEFAULT 0,");
+    strcat(query, "`rent_price` INT(11) DEFAULT 0,");
+    strcat(query, "`safe_money` INT(11) DEFAULT 0,");
+    strcat(query, "`safe_drugs` INT(11) DEFAULT 0,");
+    strcat(query, "`safe_weapon1` INT(11) DEFAULT 0,");
+    strcat(query, "`safe_weapon2` INT(11) DEFAULT 0,");
+    strcat(query, "`safe_weapon3` INT(11) DEFAULT 0,");
+    strcat(query, "`safe_weapon4` INT(11) DEFAULT 0,");
+    strcat(query, "`safe_weapon5` INT(11) DEFAULT 0,");
+    strcat(query, "`safe_ammo1` INT(11) DEFAULT 0,");
+    strcat(query, "`safe_ammo2` INT(11) DEFAULT 0,");
+    strcat(query, "`safe_ammo3` INT(11) DEFAULT 0,");
+    strcat(query, "`safe_ammo4` INT(11) DEFAULT 0,");
+    strcat(query, "`safe_ammo5` INT(11) DEFAULT 0,");
+    strcat(query, "PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+    mysql_tquery(mysql, query);
+    printf("[MYSQL] Tabelle `houses` überprüft/erstellt.");
+}
+
+stock CreateBusinessTable()
+{
+    mysql_tquery(mysql, "CREATE TABLE IF NOT EXISTS businesses (\
+        id INT AUTO_INCREMENT PRIMARY KEY,\
+        name VARCHAR(24),\
+        purchaseable TINYINT(1) DEFAULT 1,\
+        price INT DEFAULT 0,\
+        owner VARCHAR(24) DEFAULT 'Niemand',\
+        coowner VARCHAR(24) DEFAULT 'Niemand',\
+        interior INT DEFAULT 0,\
+        world INT DEFAULT 0,\
+        enter_x FLOAT DEFAULT 0.0,\
+        enter_y FLOAT DEFAULT 0.0,\
+        enter_z FLOAT DEFAULT 0.0,\
+        exit_x FLOAT DEFAULT 0.0,\
+        exit_y FLOAT DEFAULT 0.0,\
+        exit_z FLOAT DEFAULT 0.0,\
+        pickup INT DEFAULT 1274,\
+        label VARCHAR(50) DEFAULT 'Business',\
+        open TINYINT(1) DEFAULT 1,\
+        opening_hours VARCHAR(20) DEFAULT '00:00-23:59',\
+        money INT DEFAULT 0\
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", "", "");
+
+    print("[MySQL] Business-Tabelle wurde erstellt/überprüft.");
+    return 1;
+}
+
+
+public LoadBizz()
+{
+    mysql_pquery(mysql, "SELECT * FROM businesses", "OnBizLoaded");
+    return 1;
+}
+
+
+
+
+public OnBizLoaded()
+{
+    new r;
+    new buf[600];
+    new text[250];
+    cache_get_row_count(r);
+    if (!r) print("MySQL: Keine Businesses zum laden");
+
+    for (new i = 0; i < r; i++)
+    {
+        new id = getFreeBizID();
+        cache_get_value_name_int(i, "id", BizInfo[id][bID]);
+        cache_get_value_name_int(i, "purchaseable", BizInfo[id][bPurchaseable]);
+        cache_get_value_name_int(i, "price", BizInfo[id][bPrice]);
+        cache_get_value_name_int(i, "interior", BizInfo[id][bInterior]);
+        cache_get_value_name_int(i, "world", BizInfo[id][bWorld]);
+        cache_get_value_name_int(i, "open", BizInfo[id][bOpen]);
+        cache_get_value_name_int(i, "money", BizInfo[id][bMoney]);
+        cache_get_value_name(i, "name", BizInfo[id][bName], 30);
+        cache_get_value_name(i, "address", BizInfo[id][bAddress], 30);
+        cache_get_value_name(i, "owner", BizInfo[i][bOwner], MAX_PLAYER_NAME);
+        cache_get_value_name(i, "coowner", BizInfo[id][bCoOwner], MAX_PLAYER_NAME);
+        cache_get_value_name(i, "opening_hours", BizInfo[id][bOpeningHours], 20);
+        cache_get_value_name_float(i, "enter_x", BizInfo[id][bEnterX]);
+        cache_get_value_name_float(i, "enter_y", BizInfo[id][bEnterY]);
+        cache_get_value_name_float(i, "enter_z", BizInfo[id][bEnterZ]);
+        cache_get_value_name_float(i, "exit_x", BizInfo[id][bExitX]);
+        cache_get_value_name_float(i, "exit_y", BizInfo[id][bExitY]);
+        cache_get_value_name_float(i, "exit_z", BizInfo[id][bExitZ]);
+        if (!strlen(BizInfo[id][bOwner]))
+        {
+            if (BizInfo[id][bPurchaseable] == 1)
+            {
+                CreateDynamicObject(19470, BizInfo[id][bEnterX], BizInfo[id][bEnterY], BizInfo[id][bEnterZ] - 0.5, 0.0, 0.0, 360);
+                BizInfo[id][bPickup] = CreatePickup(1272, 1, BizInfo[id][bEnterX], BizInfo[id][bEnterY], BizInfo[id][bEnterZ], 0);
+                format(text, sizeof(text), "{A9C4E4}--- %s ---\n%s\n>>> ZU VERKAUFEN <<<\n{6e86ff}Kaufpreis: {FFFFFF}$%s\n\nKaufen mit '{6e86ff}/buybiz{FFFFFF}'", BizInfo[id][bName], BizInfo[id][bAddress], FormatNumber(BizInfo[id][bPrice]));
+                BizInfo[id][bLabel] = Create3DTextLabel(text, -1, BizInfo[id][bEnterX], BizInfo[id][bEnterY], BizInfo[id][bEnterZ], 6.0, 0, 0);
+            }
+            else
+            {
+                BizInfo[id][bPickup] = CreatePickup(19524, 1, BizInfo[id][bEnterX], BizInfo[id][bEnterY], BizInfo[id][bEnterZ], 0);
+            }
+        }
+        else if (strcmp(BizInfo[id][bOwner], "Staat", true) == 0)
+        {
+            BizInfo[id][bPickup] = CreatePickup(1272, 1, BizInfo[id][bEnterX], BizInfo[id][bEnterY], BizInfo[id][bEnterZ], 0);
+            format(text, sizeof(text), "{ffa273}--- %s ---\nAdresse: {FFFFFF}Dillimore 1\n{ff726e}Besitzer: {FFFFFF}STAAT\n{ff726e}Kasse: {FFFFFF}$%d\n\nBetreten mit '{ff726e}ENTER{FFFFFF}'", BizInfo[id][bName], BizInfo[id][bMoney]);
+
+            BizInfo[id][bLabel] = Create3DTextLabel(text, -1, BizInfo[id][bEnterX], BizInfo[id][bEnterY], BizInfo[id][bEnterZ], 6.0, 0, 0);
+        }
+        else
+        {
+            BizInfo[id][bPickup] = CreatePickup(1272, 1, BizInfo[id][bEnterX], BizInfo[id][bEnterY], BizInfo[id][bEnterZ], 0);
+            format(text, sizeof(text), "** %s **\n\nInhaber: %s\nTeilinhaber: %s\nKasse: %d\nGeschäftszeiten: %s\n\nBetreten mit 'ENTER'", BizInfo[i][bName], BizInfo[i][bOwner], BizInfo[id][bCoOwner], BizInfo[id][bMoney], BizInfo[id][bOpeningHours]);
+            BizInfo[id][bLabel] = Create3DTextLabel(text, -1, BizInfo[id][bEnterX], BizInfo[id][bEnterY], BizInfo[id][bEnterZ], 3.0, 0, 0);
+        }
+    }
+    return 1;
+}
+
+stock getFreeBizID()
+{
+    for (new i = 0; i < sizeof(BizInfo); i++)
+    {
+        if (BizInfo[i][bID] == 0) return i;
+    }
+    return 1;
+}
+
+public MySQLLoadHouses()
+{
+    mysql_tquery(mysql, "SELECT * FROM houses ORDER BY id ASC", "OnHousesLoaded", "");
+    return 1;
+}
+
+
+public SaveHouse(id)
+{
+    if (id < 0 || id >= MAX_HOUSES) return 0;
+    if (HouseInfo[id][hID] == 0) return 0; // Haus existiert nicht
+
+    new query[1024];
+
+    mysql_format(mysql, query, sizeof(query),
+                 "UPDATE houses SET \
+        owner='%e', \
+        address='%e', \
+        price=%d, \
+        interior=%d, \
+        world=%d, \
+        enter_x=%f, \
+        enter_y=%f, \
+        enter_z=%f, \
+        exit_x=%f, \
+        exit_y=%f, \
+        exit_z=%f, \
+        locked=%d, \
+        rentable=%d, \
+        rent_price=%d, \
+        safe_money=%d, \
+        safe_drugs=%d, \
+        safe_weapon1=%d, \
+        safe_weapon2=%d, \
+        safe_weapon3=%d, \
+        safe_weapon4=%d, \
+        safe_weapon5=%d, \
+        safe_ammo1=%d, \
+        safe_ammo2=%d, \
+        safe_ammo3=%d, \
+        safe_ammo4=%d, \
+        safe_ammo5=%d \
+        WHERE id=%d",
+                 HouseInfo[id][hOwner],
+                 HouseInfo[id][hAddress],
+                 HouseInfo[id][hPrice],
+                 HouseInfo[id][hInterior],
+                 HouseInfo[id][hWorld],
+                 HouseInfo[id][hEnterX],
+                 HouseInfo[id][hEnterY],
+                 HouseInfo[id][hEnterZ],
+                 HouseInfo[id][hExitX],
+                 HouseInfo[id][hExitY],
+                 HouseInfo[id][hExitZ],
+                 HouseInfo[id][hLocked],
+                 HouseInfo[id][hRentable],
+                 HouseInfo[id][hRentPrice],
+                 HouseInfo[id][hSafeMoney],
+                 HouseInfo[id][hSafeDrugs],
+                 HouseInfo[id][hSafeWeapons][0],
+                 HouseInfo[id][hSafeWeapons][1],
+                 HouseInfo[id][hSafeWeapons][2],
+                 HouseInfo[id][hSafeWeapons][3],
+                 HouseInfo[id][hSafeWeapons][4],
+                 HouseInfo[id][hSafeAmmo][0],
+                 HouseInfo[id][hSafeAmmo][1],
+                 HouseInfo[id][hSafeAmmo][2],
+                 HouseInfo[id][hSafeAmmo][3],
+                 HouseInfo[id][hSafeAmmo][4],
+                 HouseInfo[id][hID]
+                );
+
+    mysql_pquery(mysql, query);
+    return 1;
+}
+
+public OnHousesLoaded()
+{
+    new rows;
+    new buff[200];
+    cache_get_row_count(rows);
+    if (rows > 0)
+    {
+        for (new i = 0; i < rows; i++)
+        {
+            new houseid = getFreeHouseID();
+            cache_get_value_name_int(i, "id", HouseInfo[houseid][hID]);
+            cache_get_value_name(i, "owner", HouseInfo[houseid][hOwner], 24);
+            cache_get_value_name(i, "address", HouseInfo[houseid][hAddress], 40);
+            cache_get_value_name_int(i, "price", HouseInfo[houseid][hPrice]);
+            cache_get_value_name_int(i, "interior", HouseInfo[houseid][hInterior]);
+            cache_get_value_name_int(i, "world", HouseInfo[houseid][hWorld]);
+            cache_get_value_name_float(i, "enter_x", HouseInfo[houseid][hEnterX]);
+            cache_get_value_name_float(i, "enter_y", HouseInfo[houseid][hEnterY]);
+            cache_get_value_name_float(i, "enter_z", HouseInfo[houseid][hEnterZ]);
+            cache_get_value_name_float(i, "exit_x", HouseInfo[houseid][hExitX]);
+            cache_get_value_name_float(i, "exit_y", HouseInfo[houseid][hExitY]);
+            cache_get_value_name_float(i, "exit_z", HouseInfo[houseid][hExitZ]);
+            cache_get_value_name_int(i, "locked", HouseInfo[houseid][hLocked]);
+            cache_get_value_name_int(i, "rentable", HouseInfo[houseid][hRentable]);
+            cache_get_value_name_int(i, "rent_price", HouseInfo[houseid][hRentPrice]);
+            cache_get_value_name_int(i, "safe_money", HouseInfo[houseid][hSafeMoney]);
+            cache_get_value_name_int(i, "safe_drugs", HouseInfo[houseid][hSafeDrugs]);
+            cache_get_value_name_int(i, "safe_weapon1", HouseInfo[houseid][hSafeWeapons][0]);
+            cache_get_value_name_int(i, "safe_weapon2", HouseInfo[houseid][hSafeWeapons][1]);
+            cache_get_value_name_int(i, "safe_weapon3", HouseInfo[houseid][hSafeWeapons][2]);
+            cache_get_value_name_int(i, "safe_weapon4", HouseInfo[houseid][hSafeWeapons][3]);
+            cache_get_value_name_int(i, "safe_weapon5", HouseInfo[houseid][hSafeWeapons][4]);
+            cache_get_value_name_int(i, "safe_ammo1", HouseInfo[houseid][hSafeAmmo][0]);
+            cache_get_value_name_int(i, "safe_ammo2", HouseInfo[houseid][hSafeAmmo][1]);
+            cache_get_value_name_int(i, "safe_ammo3", HouseInfo[houseid][hSafeAmmo][2]);
+            cache_get_value_name_int(i, "safe_ammo4", HouseInfo[houseid][hSafeAmmo][3]);
+            cache_get_value_name_int(i, "safe_ammo5", HouseInfo[houseid][hSafeAmmo][4]);
+            UpdateHouse(houseid);
+
+        }
+
+        printf("[MySQL] %d Häuser wurden erfolgreich geladen.", rows);
+    }
+    else
+    {
+        print("[MySQL] Keine Häuser in der Datenbank gefunden.");
+    }
+    return 1;
+}
+
+stock getFreeHouseID()
+{
+    for (new i = 0; i < sizeof(HouseInfo); i++)
+    {
+        if (HouseInfo[i][hID] == 0) return i;
+    }
+    return 1;
+}
+
+stock UpdateHouse(houseid)
+{
+    new buff[128];
+
+    if (HouseInfo[houseid][hPickup])
+    {
+        DestroyPickup(HouseInfo[houseid][hPickup]);
+    }
+    if (HouseInfo[houseid][hText])
+    {
+        Delete3DTextLabel(HouseInfo[houseid][hText]);
+    }
+
+    if (!strlen(HouseInfo[houseid][hOwner]))
+    {
+        HouseInfo[houseid][hPickup] = CreatePickup(PICKUP_FORSALE, 1, HouseInfo[houseid][hEnterX], HouseInfo[houseid][hEnterY], HouseInfo[houseid][hEnterZ], -1);
+        format(buff, sizeof(buff), "{A9C4E4}>>> ZU VERKAUFEN <<<\nHaus {FFFFFF}%s\n{A9C4E4}Kaufpreis: {FFFFFF}$%s", HouseInfo[houseid][hAddress], FormatNumber(HouseInfo[houseid][hPrice]));
+        HouseInfo[houseid][hText] = Create3DTextLabel(buff, -1, HouseInfo[houseid][hEnterX], HouseInfo[houseid][hEnterY], HouseInfo[houseid][hEnterZ], 6.0, 0, 1);
+    }
+    else
+    {
+        format(buff, sizeof(buff), "{A9C4E4}Haus {FFFFFF}%s", HouseInfo[houseid][hAddress]);
+        HouseInfo[houseid][hPickup] = CreatePickup(PICKUP_SOLD, 1, HouseInfo[houseid][hEnterX], HouseInfo[houseid][hEnterY], HouseInfo[houseid][hEnterZ], -1);
+        HouseInfo[houseid][hText] = Create3DTextLabel(buff, -1, HouseInfo[houseid][hEnterX], HouseInfo[houseid][hEnterY], HouseInfo[houseid][hEnterZ], 6.0, 0, 1);
+    }
+    return 1;
+}
+
+stock SendMeMessage(playerid, const text[])
+{
+    if (isnull(text)) return 0;
+
+    new name[MAX_PLAYER_NAME];
+    GetPlayerName(playerid, name, sizeof(name));
+
+    new Float:x, Float:y, Float:z;
+    GetPlayerPos(playerid, x, y, z);
+
+    new len = strlen(text);
+
+    if (len <= MAX_LINE_LENGTH)
+    {
+        new string[144];
+        format(string, sizeof(string), "* %s %s", name, text);
+
+        for (new i = 0; i < MAX_PLAYERS; i++)
+        {
+            if (IsPlayerConnected(i) && IsPlayerInRangeOfPoint(i, TALK_RADIUS, x, y, z))
+            {
+                SendClientMessage(i, COLOR_ME, string);
+            }
+        }
+    }
+    else
+    {
+        new part1[80], part2[80];
+        new splitPos = MAX_LINE_LENGTH;
+
+        // Finde letztes Leerzeichen vor MAX_LINE_LENGTH
+        for (new i = MAX_LINE_LENGTH - 1; i > 0; i--)
+        {
+            if (text[i] == ' ')
+            {
+                splitPos = i;
+                break;
+            }
+        }
+
+        // Ersten Teil kopieren
+        for (new i = 0; i < splitPos; i++)
+        {
+            part1[i] = text[i];
+        }
+        part1[splitPos] = 0;
+
+        // Zweiten Teil kopieren
+        new pos = 0;
+        for (new i = splitPos + 1; i < len; i++)
+        {
+            part2[pos] = text[i];
+            pos++;
+        }
+        part2[pos] = 0;
+
+        // Nachricht an Spieler in Reichweite senden
+        new string[144];
+        format(string, sizeof(string), "* %s %s", name, part1);
+
+        for (new i = 0; i < MAX_PLAYERS; i++)
+        {
+            if (IsPlayerConnected(i) && IsPlayerInRangeOfPoint(i, TALK_RADIUS, x, y, z))
+            {
+                SendClientMessage(i, COLOR_ME, string);
+                format(string, sizeof(string), "* ... %s", part2);
+                SendClientMessage(i, COLOR_ME, string);
+            }
+        }
+    }
+
+    return 1;
+}
+
+// Funktion um Zahlen zu formatieren (100000 -> 100.000)
+stock FormatNumber(number)
+{
+    new string[32], temp[32];
+    format(temp, sizeof(temp), "%d", number);
+
+    new len = strlen(temp);
+    new pos = 0;
+    new count = 0;
+
+    // Von hinten nach vorne durchgehen
+    for (new i = len - 1; i >= 0; i--)
+    {
+        string[pos++] = temp[i];
+        count++;
+
+        // Alle 3 Ziffern einen Punkt einfügen
+        if (count == 3 && i != 0)
+        {
+            string[pos++] = '.';
+            count = 0;
+        }
+    }
+
+    // String umkehren (war rückwärts)
+    new result[32];
+    new resultPos = 0;
+    for (new i = pos - 1; i >= 0; i--)
+    {
+        result[resultPos++] = string[i];
+    }
+
+    return result;
 }
