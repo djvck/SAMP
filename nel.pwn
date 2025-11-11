@@ -175,6 +175,7 @@ forward OnHousesLoaded();
 forward LoadBizz();
 forward OnBizLoaded();
 forward SaveHouse(id);
+forward OnHouseCreated(houseid);
 
 #define TALK_RADIUS 20.0
 #define MAX_LINE_LENGTH 75
@@ -818,7 +819,7 @@ stock UpdateClockTextdraw()
     new string[16];
     format(string, sizeof(string), "%02d:%02d", ServerHour, ServerMinute);
     TextDrawSetString(ServerClock, string);
-    return 1;  // ? NEU: return hinzugefùgt
+    return 1;  //
 }
 
 stock MySQSL_Connection(ttl = 3)
@@ -1278,7 +1279,7 @@ CMD:buyhouse(playerid, params[])
     for (new i = 0; i < sizeof(HouseInfo); i++)
     {
         if (!HouseInfo[i][hID]) continue;
-        if (!IsPlayerInRangeOfPoint(playerid, 5.0, HouseInfo[i][hEnterX], HouseInfo[i][hEnterY], HouseInfo[i][hEnterZ])) continue;
+        if (!IsPlayerInRangeOfPoint(playerid, 2.0, HouseInfo[i][hEnterX], HouseInfo[i][hEnterY], HouseInfo[i][hEnterZ])) continue;
         nearHouse = true;
         if (!strlen(HouseInfo[i][hOwner]))
         {
@@ -1305,7 +1306,7 @@ CMD:sellhouse(playerid, params[])
     for (new i = 0; i < sizeof(HouseInfo); i++)
     {
         if (!HouseInfo[i][hID]) continue;
-        if (!IsPlayerInRangeOfPoint(playerid, 5.0, HouseInfo[i][hEnterX], HouseInfo[i][hEnterY], HouseInfo[i][hEnterZ])) continue;
+        if (!IsPlayerInRangeOfPoint(playerid, 2.0, HouseInfo[i][hEnterX], HouseInfo[i][hEnterY], HouseInfo[i][hEnterZ])) continue;
 
         nearHouse = true;
 
@@ -1334,11 +1335,46 @@ CMD:sellhouse(playerid, params[])
 /* ------------------ ADMIN COMMANDS ---------------------- */
 
 
+
+
+
 CMD:createhouse(playerid, params[])
 {
+    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berrechtigt diesen Befehl zu nutzen.");
+    new Float:pos[3];
+    GetPlayerPos(playerid, pos[0], pos[1], pos[2]);
+
+    new houseid = getFreeHouseID();
+
+    HouseInfo[houseid][hEnterX] = pos[0];
+    HouseInfo[houseid][hEnterY] = pos[1];
+    HouseInfo[houseid][hEnterZ] = pos[2];
+    HouseInfo[houseid][hExitX] = 0.0;
+    HouseInfo[houseid][hExitY] = 0.0;
+    HouseInfo[houseid][hExitZ] = 0.0;
+    HouseInfo[houseid][hInterior] = 0;
+    HouseInfo[houseid][hPrice] = 1;
+    strmid(HouseInfo[houseid][hOwner], "", MAX_PLAYER_NAME, MAX_PLAYER_NAME);
+    new query[300];
+
+    mysql_format(mysql, query, sizeof(query), "INSERT INTO houses (owner, enter_x, enter_y, enter_z, exit_x, exit_y, exit_z, interior, price) VALUES ('%e', %f, %f, %f, 0.0, 0.0, 0.0, 0, 1)", HouseInfo[houseid][hOwner], pos[0], pos[1], pos[2]);
+
+    mysql_pquery(mysql, query, "OnHouseCreated", "i", houseid);
+    UpdateHouse(houseid);
+
+    new buf[128];
+    format(buf, sizeof(buf), "House ID %d wurde erstellt", houseid);
+    SendClientMessage(playerid, -1, buf);
+
     return 1;
 }
 
+
+public OnHouseCreated(houseid)
+{
+    HouseInfo[houseid][hID] = cache_insert_id();
+    return 1;
+}
 
 CMD:givemoney(playerid, params[])
 {
