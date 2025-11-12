@@ -176,6 +176,10 @@ forward LoadBizz();
 forward OnBizLoaded();
 forward SaveHouse(id);
 forward OnHouseCreated(houseid);
+forward UpdateServerClock();
+forward ConnectDelay(playerid);
+forward OnPlayerCheck(playerid);
+forward OnPlayerLogin(playerid);
 
 #define TALK_RADIUS 20.0
 #define MAX_LINE_LENGTH 75
@@ -377,7 +381,7 @@ public OnPlayerRequestClass(playerid, classid)
 }
 
 
-forward ConnectDelay(playerid);
+
 public ConnectDelay(playerid)
 {
     new buffer[128];
@@ -387,7 +391,7 @@ public ConnectDelay(playerid)
 }
 
 
-forward OnPlayerCheck(playerid);
+
 public OnPlayerCheck(playerid)
 {
     new r;
@@ -721,6 +725,11 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
         case DIALOG_PASSWORD_CONFIRM:
         {
             if (!response) return Kick(playerid);
+            if(strlen(inputtext) < 1)
+            {
+                ShowPlayerDialog(playerid, DIALOG_PASSWORD_CONFIRM, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Bitte gib das Passwort, zur Bestätigung, erneut ein:\n\n{FF0000}Die Passwörter stimmen nicht überein. Bitte versuche es erneut!", "Weiter", "Abbrachen");
+                return 1;               
+            }
             if (strcmp(player[playerid][pPassword], inputtext))
             {
                 ShowPlayerDialog(playerid, DIALOG_PASSWORD_CONFIRM, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Bitte gib das Passwort, zur Bestätigung, erneut ein:\n\n{FF0000}Die Passwörter stimmen nicht überein. Bitte versuche es erneut!", "Weiter", "Abbrachen");
@@ -735,7 +744,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     return 1;
 }
 
-forward OnPlayerLogin(playerid);
+
 public OnPlayerLogin(playerid)
 {
     new buf[128];
@@ -786,7 +795,7 @@ public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 }
 
 
-forward UpdateServerClock();
+
 
 public UpdateServerClock()
 {
@@ -1335,12 +1344,69 @@ CMD:sellhouse(playerid, params[])
 /* ------------------ ADMIN COMMANDS ---------------------- */
 
 
+CMD:deletehouse(playerid, params[])
+{
+    new query[128];
+    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berechtigt diesen Befehl zu nutzen.");
+    new bool:nearHouse = false;
+    for (new i = 0; i < sizeof(HouseInfo); i++)
+    {
+        if (!HouseInfo[i][hID]) continue;
+        if (!IsPlayerInRangeOfPoint(playerid, 2.0, HouseInfo[i][hEnterX], HouseInfo[i][hEnterY], HouseInfo[i][hEnterZ])) continue;
+        mysql_format(mysql, query, sizeof(query), "DELETE FROM houses WHERE id='%d'", HouseInfo[i][hID]);
+        mysql_pquery(mysql, query);
 
+        HouseInfo[i][hID] = 0;
+        HouseInfo[i][hEnterX] = 0;
+        HouseInfo[i][hEnterY] = 0;
+        HouseInfo[i][hEnterZ] = 0;
+        HouseInfo[i][hExitX] = 0.0;
+        HouseInfo[i][hExitY] = 0.0;
+        HouseInfo[i][hExitZ] = 0.0;
+        HouseInfo[i][hInterior] = 0;
+        HouseInfo[i][hPrice] = 0; 
+
+        if (HouseInfo[i][hPickup])
+        {
+            DestroyPickup(HouseInfo[i][hPickup]);
+        }
+        if (HouseInfo[i][hText])
+        {
+            Delete3DTextLabel(HouseInfo[i][hText]);
+        }      
+        return 1;
+    }
+
+    if (!nearHouse) return SendClientMessage(playerid, -1, "Da ist kein Haus");   
+    return 1;
+}
+
+CMD:setprice(playerid, params[])
+{
+    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berechtigt diesen Befehl zu nutzen.");
+    if(sscanf(params, "i", tmp_price)) return SendClientMessage(playerid, COLOR_GRAY, "BENUTZUNG: /setprice [Kaufpreis]");
+    new bool:nearHouse = false;
+    new tmp_price;
+
+    for (new i = 0; i < sizeof(HouseInfo); i++)
+    {
+        if (!HouseInfo[i][hID]) continue;
+        if (!IsPlayerInRangeOfPoint(playerid, 2.0, HouseInfo[i][hEnterX], HouseInfo[i][hEnterY], HouseInfo[i][hEnterZ])) continue;
+        nearHouse = true;
+
+        HouseInfo[i][hID] = tmp_price; 
+        SaveHouse(i)
+        return 1;
+    }
+
+    if (!nearHouse) return SendClientMessage(playerid, -1, "Da ist kein Haus");
+    return 1;
+}
 
 
 CMD:createhouse(playerid, params[])
 {
-    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berrechtigt diesen Befehl zu nutzen.");
+    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berechtigt diesen Befehl zu nutzen.");
     new Float:pos[3];
     GetPlayerPos(playerid, pos[0], pos[1], pos[2]);
 
@@ -1370,16 +1436,12 @@ CMD:createhouse(playerid, params[])
 }
 
 
-public OnHouseCreated(houseid)
-{
-    HouseInfo[houseid][hID] = cache_insert_id();
-    return 1;
-}
+
 
 CMD:givemoney(playerid, params[])
 {
     new targetid, amount;
-    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berrechtigt diesen Befehl zu nutzen.");
+    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berechtigt diesen Befehl zu nutzen.");
     if (sscanf(params, "ud", targetid, amount)) return SendClientMessage(playerid, COLOR_GRAY, "BENUTZUNG: /givemoney [ID/Name] [Betrag]");
     GivePlayerMoney(targetid, amount);
     return 1;
@@ -1390,7 +1452,7 @@ CMD:cveh(playerid, params[])
     new vid, c1, c2, model;
     new Float:x, Float:y, Float:z;
     new buf[128];
-    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berrechtigt diesen Befehl zu nutzen.");
+    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berechtigt diesen Befehl zu nutzen.");
     if (sscanf(params, "ddd", model, c1, c2)) return SendClientMessage(playerid, COLOR_GRAY, "BENUTZUNG: /cveh [Model-ID] [Farbe] [Farbe]");
     if (model < 400 || model > 611) return SendClientMessage(playerid, COLOR_GRAY, "   Du hast eine ungültige Model-ID eingegeben.");
     GetPlayerPos(playerid, x, y, z);
@@ -1404,7 +1466,7 @@ CMD:cveh(playerid, params[])
 CMD:sethp(playerid, params[])
 {
     new targetid, Float:health, buf[128];
-    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berrechtigt diesen Befehl zu nutzen.");
+    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berechtigt diesen Befehl zu nutzen.");
     if (sscanf(params, "uf", targetid, health)) return SendClientMessage(playerid, COLOR_GRAY, "BENUTZUNG: /sethp [ID/Name] [HP]");
     if (!IsPlayerConnected(targetid)) return SendClientMessage(playerid, COLOR_GRAY, "   Der Spieler ist nicht mit dem Server verbunden.");
     SetPlayerHealth(targetid, health);
@@ -1415,7 +1477,7 @@ CMD:sethp(playerid, params[])
 
 CMD:restart(playerid, params[])
 {
-    if (player[playerid][pAdmin] < 1337) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berrechtigt diesen Befehl zu nutzen.");
+    if (player[playerid][pAdmin] < 1337) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berechtigt diesen Befehl zu nutzen.");
     SendRconCommand("gmx");
     return 1;
 }
@@ -1618,6 +1680,11 @@ public MySQLLoadHouses()
     return 1;
 }
 
+public OnHouseCreated(houseid)
+{
+    HouseInfo[houseid][hID] = cache_insert_id();
+    return 1;
+}
 
 public SaveHouse(id)
 {
