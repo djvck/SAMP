@@ -162,7 +162,7 @@
 #define MYSQL_PASSWORD "Hallo123"
 #define MYSQL_DB "gta"
 
-#define MAX_HOUSES 150
+#define MAX_HOUSES 35
 #define MAX_BIZ    200
 
 new MySQL:mysql;
@@ -725,10 +725,10 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
         case DIALOG_PASSWORD_CONFIRM:
         {
             if (!response) return Kick(playerid);
-            if(strlen(inputtext) < 1)
+            if (strlen(inputtext) < 1)
             {
                 ShowPlayerDialog(playerid, DIALOG_PASSWORD_CONFIRM, DIALOG_STYLE_PASSWORD, "Neues Passwort", #DIALOGGRAY"Bitte gib das Passwort, zur Bestätigung, erneut ein:\n\n{FF0000}Die Passwörter stimmen nicht überein. Bitte versuche es erneut!", "Weiter", "Abbrachen");
-                return 1;               
+                return 1;
             }
             if (strcmp(player[playerid][pPassword], inputtext))
             {
@@ -1364,7 +1364,7 @@ CMD:deletehouse(playerid, params[])
         HouseInfo[i][hExitY] = 0.0;
         HouseInfo[i][hExitZ] = 0.0;
         HouseInfo[i][hInterior] = 0;
-        HouseInfo[i][hPrice] = 0; 
+        HouseInfo[i][hPrice] = 0;
 
         if (HouseInfo[i][hPickup])
         {
@@ -1373,20 +1373,22 @@ CMD:deletehouse(playerid, params[])
         if (HouseInfo[i][hText])
         {
             Delete3DTextLabel(HouseInfo[i][hText]);
-        }      
+        }
         return 1;
     }
 
-    if (!nearHouse) return SendClientMessage(playerid, -1, "Da ist kein Haus");   
+    if (!nearHouse) return SendClientMessage(playerid, -1, "Da ist kein Haus");
     return 1;
 }
 
 CMD:setprice(playerid, params[])
 {
-    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berechtigt diesen Befehl zu nutzen.");
-    if(sscanf(params, "i", tmp_price)) return SendClientMessage(playerid, COLOR_GRAY, "BENUTZUNG: /setprice [Kaufpreis]");
-    new bool:nearHouse = false;
     new tmp_price;
+    new string[128];
+    if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berechtigt diesen Befehl zu nutzen.");
+    if (sscanf(params, "i", tmp_price)) return SendClientMessage(playerid, COLOR_GRAY, "BENUTZUNG: /setprice [Kaufpreis]");
+    new bool:nearHouse = false;
+
 
     for (new i = 0; i < sizeof(HouseInfo); i++)
     {
@@ -1394,8 +1396,11 @@ CMD:setprice(playerid, params[])
         if (!IsPlayerInRangeOfPoint(playerid, 2.0, HouseInfo[i][hEnterX], HouseInfo[i][hEnterY], HouseInfo[i][hEnterZ])) continue;
         nearHouse = true;
 
-        HouseInfo[i][hID] = tmp_price; 
-        SaveHouse(i)
+        HouseInfo[i][hPrice] = tmp_price;
+        format(string, sizeof(string), "Debug: HausID %d Kaufpreis auf %d gesetzt.", HouseInfo[i][hID], HouseInfo[i][hPrice]);
+        SendClientMessage(playerid, -1, string);
+        SaveHouse(i);
+        UpdateHouse(i);
         return 1;
     }
 
@@ -1408,9 +1413,15 @@ CMD:createhouse(playerid, params[])
 {
     if (player[playerid][pAdmin] < 1) return SendClientMessage(playerid, COLOR_GRAY, "   Du bist nicht berechtigt diesen Befehl zu nutzen.");
     new Float:pos[3];
-    GetPlayerPos(playerid, pos[0], pos[1], pos[2]);
+
 
     new houseid = getFreeHouseID();
+    if (houseid == -1 || houseid >= MAX_HOUSES)
+    {
+        SendClientMessage(playerid, COLOR_GRAY, "   Das maximale Limit an Häusern wurde erreicht. Es können keine weiteren Häuser erstellt werden.");
+        return 1;
+    }
+    GetPlayerPos(playerid, pos[0], pos[1], pos[2]);
 
     HouseInfo[houseid][hEnterX] = pos[0];
     HouseInfo[houseid][hEnterY] = pos[1];
@@ -1419,19 +1430,20 @@ CMD:createhouse(playerid, params[])
     HouseInfo[houseid][hExitY] = 0.0;
     HouseInfo[houseid][hExitZ] = 0.0;
     HouseInfo[houseid][hInterior] = 0;
-    HouseInfo[houseid][hPrice] = 1;
+    HouseInfo[houseid][hPrice] = 10;
     strmid(HouseInfo[houseid][hOwner], "", MAX_PLAYER_NAME, MAX_PLAYER_NAME);
     new query[300];
 
-    mysql_format(mysql, query, sizeof(query), "INSERT INTO houses (owner, enter_x, enter_y, enter_z, exit_x, exit_y, exit_z, interior, price) VALUES ('%e', %f, %f, %f, 0.0, 0.0, 0.0, 0, 1)", HouseInfo[houseid][hOwner], pos[0], pos[1], pos[2]);
+    mysql_format(mysql, query, sizeof(query), "INSERT INTO houses (owner, enter_x, enter_y, enter_z, exit_x, exit_y, exit_z, interior, price) VALUES ('%e', %f, %f, %f, 0.0, 0.0, 0.0, 0, %d)", HouseInfo[houseid][hOwner], pos[0], pos[1], pos[2], HouseInfo[houseid][hPrice]);
 
     mysql_pquery(mysql, query, "OnHouseCreated", "i", houseid);
     UpdateHouse(houseid);
 
-    new buf[128];
-    format(buf, sizeof(buf), "House ID %d wurde erstellt", houseid);
+    new buf[200];
+    format(buf, sizeof(buf), "   Du hast erfolgreich ein neues Haus erstellt. ID: {A9C4E4}%d", houseid);
     SendClientMessage(playerid, -1, buf);
-
+    format(buf, sizeof(buf), "AC: Haus ID: %d, Pos: %f, %f, %f, Kaufpreis: %s, Interior: %d", houseid, pos[0], pos[1], pos[2], FormatNumber(HouseInfo[houseid][hPrice]), HouseInfo[houseid][hInterior]);
+    SendClientMessage(playerid, -1, buf);
     return 1;
 }
 
@@ -1811,7 +1823,7 @@ stock getFreeHouseID()
     {
         if (HouseInfo[i][hID] == 0) return i;
     }
-    return 1;
+    return -1;
 }
 
 stock UpdateHouse(houseid)
